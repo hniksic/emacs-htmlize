@@ -81,9 +81,7 @@
 ;;
 
 ;; TODO: Should attempt to merge faces (utilize CSS for this?).
-;; Should recognize all extents under XEmacs, not just text
-;; properties.  Should recognize overlays under FSF Emacs.  Should
-;; ignore invisible text.  Should expand TABs.
+;; Should ignore invisible text.  Should expand TABs.
 
 ;; User quotes: "You sir, are a sick, sick, _sick_ person. :)"
 ;;                  -- Bill Perry, author of Emacs/W3
@@ -99,7 +97,7 @@
   (defvar font-lock-auto-fontify)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "0.55")
+(defconst htmlize-version "0.57")
 
 ;; Incantations to make custom stuff work without customize, e.g. on
 ;; XEmacs 19.14 or GNU Emacs 19.34.
@@ -382,6 +380,16 @@ This is run by the `htmlize-file'.")
 	     (and (buffer-live-p ,temp-buffer)
 		  (kill-buffer ,temp-buffer))))))))
 
+;; Under XEmacs, `next-single-property-change' works for all kinds of
+;; extents.  Under FSF, `next-char-property-change' works for text
+;; properties and overlays, but doesn't accept a PROP argument.  What
+;; we need is something like `next-char-single-property-change', and
+;; that doesn't exist.  :-(
+(if htmlize-running-xemacs
+    (defalias 'htmlize-next-change 'next-single-property-change)
+  ;; As I said above, this ignores overlays.  Let it be for now.
+  (defalias 'htmlize-next-change 'next-single-property-change))
+
 (defvar htmlize-x-library-search-path
   '("/usr/X11R6/lib/X11/"
     "/usr/X11R5/lib/X11/"
@@ -598,12 +606,17 @@ in the system directories."
 			   (pushnew face faces)))
 		       nil)
 		     nil nil nil nil nil 'face)
+      ;; FSF Emacs code.  This code is not limited to text properties
+      ;; and would work correctly under XEmacs, but the above is
+      ;; measured to be twice faster, probably because map-extents
+      ;; with a PROPERTY argument is more optimized than looping
+      ;; through `htmlize-next-change'.
       (save-excursion
 	(goto-char (point-min))
 	(let (face next)
 	  (while (not (eobp))
-	    (setq face (get-text-property (point) 'face)
-		  next (or (next-single-property-change (point) 'face)
+	    (setq face (get-char-property (point) 'face)
+		  next (or (htmlize-next-change (point) 'face)
 			   (point-max)))
 	    (when (consp face)
 	      (setq face (car face)))
@@ -611,6 +624,7 @@ in the system directories."
 	      (pushnew face faces))
 	    (goto-char next)))
 	(setq faces (delq nil faces))))
+
     (delq 'default faces)))
 
 ;;; CSS1 support
@@ -759,11 +773,18 @@ in the system directories."
       (save-excursion
 	(goto-char (point-min))
 	(while (not (eobp))
-	  (setq face (get-text-property (point) 'face)
-		next-change (or (next-single-property-change (point) 'face)
+	  ;; Using get-char-property instead of get-text-property
+	  ;; insures that all the extents are examined, not only the
+	  ;; ones that belong to text properties.  Likewise for
+	  ;; `htmlize-next-change'.
+	  (setq face (get-char-property (point) 'face)
+		next-change (or (htmlize-next-change (point) 'face)
 				(point-max)))
 	  (and (consp face)
-	       ;; Choose the first face.
+	       ;; Choose the first face.  Here we might want to merge
+	       ;; the faces.  In XEmacs, we might also want to take
+	       ;; into account all the `face' properties of all the
+	       ;; extents overlapping next-change.  *sigh*
 	       (setq face (car face)))
 	  (and (eq face 'default)
 	       (setq face nil))

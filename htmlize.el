@@ -93,7 +93,7 @@
     ;; `cl' is loaded.
     (load "cl-extra")))
 
-(defconst htmlize-version "1.27")
+(defconst htmlize-version "1.28")
 
 ;; Incantations to make custom stuff work without customize, e.g. on
 ;; XEmacs 19.14 or GNU Emacs 19.34.
@@ -757,7 +757,7 @@ If no rgb.txt file is found, return nil."
 	   ;; returns nil.
 	   )
 	  ((string-match "\\`#" color)
-	   ;; The color is alredy in #rrggbb format.
+	   ;; The color is already in #rrggbb format.
 	   (setq rgb-string color))
 	  ((and htmlize-use-rgb-txt
 		htmlize-color-rgb-hash)
@@ -1095,7 +1095,7 @@ property and by buffer overlays that specify `face'."
 ;; htmlize supports generating HTML in two several fundamentally
 ;; different ways, one with the use of CSS and nested <span> tags, and
 ;; the other with the use of the old <font> tags.  Rather than adding
-;; a bunch of if's to many places, we take a semi-OO approach.
+;; a bunch of ifs to many places, we take a semi-OO approach.
 ;; `htmlize-buffer-1' calls a number of "methods", which indirect to
 ;; the functions that depend on `htmlize-output-type'.  The currently
 ;; used methods are `doctype', `insert-head', `body-tag', and
@@ -1217,7 +1217,7 @@ property and by buffer overlays that specify `face'."
   ;; there is no use in specifying it.  So we return the standard HTML
   ;; 4.0 declaration, which makes generated HTML technically illegal.
   ;; If you have a problem with that, use the `css' generation engine
-  ;; which I believe creates fully conformant HTML.
+  ;; which I believe creates fully conforming HTML.
 
   "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN\">"
 

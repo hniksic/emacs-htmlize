@@ -1438,9 +1438,7 @@ it's called with the same value of KEY.  All other times, the cached
 					      (file-name-nondirectory
 					       (buffer-file-name)))
 					   "*html*")))
-	   ;; Having a dummy value in the plist allows writing simply
-	   ;; (plist-put places foo bar).
-	   (places '(nil nil))
+	   (places (gensym))
 	   (title (if (buffer-file-name)
 		      (file-name-nondirectory (buffer-file-name))
 		    (buffer-name))))
@@ -1451,7 +1449,7 @@ it's called with the same value of KEY.  All other times, the cached
 		(format "<!-- Created by htmlize-%s in %s mode. -->\n"
 			htmlize-version htmlize-output-type)
 		"<html>\n  ")
-	(plist-put places 'head-start (point-marker))
+	(put places 'head-start (point-marker))
 	(insert "<head>\n"
 		"    <title>" (htmlize-protect-string title) "</title>\n"
 		(if htmlize-html-charset
@@ -1462,12 +1460,12 @@ it's called with the same value of KEY.  All other times, the cached
 		htmlize-head-tags)
 	(htmlize-method insert-head buffer-faces face-map)
 	(insert "  </head>")
-	(plist-put places 'head-end (point-marker))
+	(put places 'head-end (point-marker))
 	(insert "\n  ")
-	(plist-put places 'body-start (point-marker))
+	(put places 'body-start (point-marker))
 	(insert (htmlize-method body-tag face-map)
 		"\n    ")
-	(plist-put places 'content-start (point-marker))
+	(put places 'content-start (point-marker))
 	(insert "<pre>\n"))
       (let ((insert-text-method
 	     ;; Get the inserter method, so we can funcall it inside
@@ -1517,9 +1515,9 @@ it's called with the same value of KEY.  All other times, the cached
       ;; Insert the epilog and post-process the buffer.
       (with-current-buffer htmlbuf
 	(insert "</pre>")
-	(plist-put places 'content-end (point-marker))
+	(put places 'content-end (point-marker))
 	(insert "\n  </body>")
-	(plist-put places 'body-end (point-marker))
+	(put places 'body-end (point-marker))
 	(insert "\n</html>\n")
 	(when htmlize-generate-hyperlinks
 	  (htmlize-make-hyperlinks))
@@ -1541,7 +1539,8 @@ it's called with the same value of KEY.  All other times, the cached
 	  ;; What sucks about this is that the minor modes, most notably
 	  ;; font-lock-mode, won't be initialized.  Oh well.
 	  (funcall htmlize-html-major-mode))
-	(set (make-local-variable 'htmlize-buffer-places) places)
+	(set (make-local-variable 'htmlize-buffer-places)
+             (symbol-plist places))
 	(run-hooks 'htmlize-after-hook)
 	(buffer-enable-undo))
       htmlbuf)))

@@ -98,7 +98,7 @@
   (defvar font-lock-auto-fontify)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "0.64")
+(defconst htmlize-version "0.65")
 
 ;; Incantations to make custom stuff work without customize, e.g. on
 ;; XEmacs 19.14 or GNU Emacs 19.34.
@@ -132,7 +132,11 @@ with description of faces, and use it in the HTML document, specifying
 the faces in the actual text with <span class=\"FACE\">.
 
 When set to `font', the properties will be set using layout tags
-<font>, <b>, <i>, <u>, and <strike>."
+<font>, <b>, <i>, <u>, and <strike>.
+
+`css' output is normally preferred, but `font' is still useful for
+supporting old, pre-CSS browsers, or for easy embedding of colorized
+text in foreign HTML documents (no style sheet to carry around) ."
   :type '(choice (const css) (const font))
   :group 'htmlize)
 
@@ -142,6 +146,20 @@ This is on by default; set it to nil if you don't want htmlize to
 insert hyperlinks in the resulting HTML.  (In which case you can still
 do your own hyperlinkification from htmlize-after-hook.)"
   :type 'boolean
+  :group 'htmlize)
+
+(defcustom htmlize-hyperlink-style "      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+"
+  "*The CSS style used for hyperlinks when in CSS mode."
+  :type 'string
   :group 'htmlize)
 
 (defcustom htmlize-use-rgb-map t
@@ -391,15 +409,50 @@ This is run by the `htmlize-file'.")
 	     (and (buffer-live-p ,temp-buffer)
 		  (kill-buffer ,temp-buffer))))))))
 
-;; Under XEmacs, `next-single-property-change' works for all kinds of
-;; extents.  Under FSF, `next-char-property-change' works for text
-;; properties and overlays, but doesn't accept a PROP argument.  What
-;; we need is something like `next-char-single-property-change', and
-;; that doesn't exist.  :-(
-(if htmlize-running-xemacs
-    (defalias 'htmlize-next-change 'next-single-property-change)
-  ;; As I said above, this ignores overlays.  Let it be for now.
+;; We need a function that efficiently finds the next change of the
+;; `face' property, preferably regardless of whether the change
+;; occurred because of a text property or an extent/overlay.  As it
+;; turns out, it is not easy to do that compatibly.
+
+;; Under XEmacs, `next-single-property-change' does that.  Under GNU
+;; Emacs beginning with version 21, `next-single-char-property-change'
+;; is available and works.  GNU Emacs 20 had
+;; `next-char-property-change', which we can use.  GNU Emacs 19 didn't
+;; provide any means for simultaneously examining overlays and text
+;; properties, so when using Emacs 19.34, we punt and fall back to
+;; `next-single-property-change', thus ignoring overlays altogether.
+
+(cond
+ (htmlize-running-xemacs
+  ;; XEmacs: good.
   (defalias 'htmlize-next-change 'next-single-property-change))
+ ((fboundp 'next-single-char-property-change)
+  ;; GNU Emacs 21: good.
+  (defalias 'htmlize-next-change 'next-single-char-property-change))
+ ((fboundp 'next-char-property-change)
+  ;; GNU Emacs 20: bad, but fixable.
+  (defun htmlize-next-change (pos prop)
+    (let ((done nil)
+	  (current-value (get-char-property pos prop))
+	  newpos next-value)
+      ;; Loop over positions returned by next-char-property-change
+      ;; until the value of PROP changes or we've hit EOB.
+      (while (not done)
+	(setq newpos (next-char-property-change pos)
+	      next-value (get-char-property newpos prop))
+	(cond ((eq newpos pos)
+	       ;; Possibly at EOB?  Whatever, just don't infloop.
+	       (setq done t))
+	      ((eq next-value current-value)
+	       ;; PROP hasn't changed -- keep looping.
+	       )
+	      (t
+	       (setq done t)))
+	(setq pos newpos))
+      pos)))
+ (t
+  ;; GNU Emacs 19.34: hopeless.
+  (defalias 'htmlize-next-change 'next-single-property-change)))
 
 (defvar htmlize-x-library-search-path
   '("/usr/X11R6/lib/X11/"
@@ -691,16 +744,7 @@ in the system directories."
 	    (mapconcat #'identity (htmlize-css-specs default-face-object)
 		       "\n        ")
 	    "
-      } /* default */
-      a {
-        color: inherit;
-        background-color: inherit;
-        font: inherit;
-        text-decoration: inherit;
-      }
-      a:hover {
-        text-decoration: underline;
-      }\n")
+      } /* default */\n")
     (maphash
      (lambda (face face-object)
        (let ((cleaned-up-face-name (symbol-name face)))
@@ -720,7 +764,8 @@ in the system directories."
 		       (mapconcat #'identity specs "\n        ")))
 	     (insert "\n      } /* " cleaned-up-face-name " */\n")))))
      htmlize-face-hash))
-  (insert "    -->\n    </style>\n"))
+  (insert htmlize-hyperlink-style
+	  "    -->\n    </style>\n"))
 
 (defun htmlize-css-face-prejunk (face-object)
   (concat "<span class=\"" (htmlize-face-css-name face-object) "\">"))
@@ -861,7 +906,7 @@ HTML contents will be provided in a new buffer."
 				(point-max)))
 	  (and (consp face)
 	       ;; Choose the first face.  Here we might want to merge
-	       ;; the faces.  In XEmacs, we might also want to take
+	       ;; the faces.  Under XEmacs, we might also want to take
 	       ;; into account all the `face' properties of all the
 	       ;; extents overlapping next-change.  *sigh*
 	       (setq face (car face)))

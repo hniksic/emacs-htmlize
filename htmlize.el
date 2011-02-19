@@ -1,4 +1,4 @@
-;; htmlize.el -- Convert buffer text and faces to HTML.
+;; htmlize.el -- Convert buffer text and decorations to HTML.
 
 ;; Copyright (C) 1997,1998,1999,2000,2001,2002,2003 Hrvoje Niksic
 
@@ -22,10 +22,9 @@
 
 ;;; Commentary:
 
-;; This package analyses the text properties of the buffer and
-;; converts them, along with the text, to HTML.  Mail to
-;; <hniksic@xemacs.org> to discuss features and additions.  All
-;; suggestions are more than welcome.
+;; This package converts the buffer text and the associated
+;; decorations to HTML.  Mail to <hniksic@xemacs.org> to discuss
+;; features and additions.  All suggestions are more than welcome.
 
 ;; To use this, just switch to the buffer you want HTML-ized and type
 ;; `M-x htmlize-buffer'.  You will be switched to a new buffer that
@@ -49,7 +48,7 @@
 
 ;; You can also use htmlize from your Emacs Lisp code.  When called
 ;; non-interactively, `htmlize-buffer' and `htmlize-region' will
-;; return the resulting HTML buffer, but will not switch current
+;; return the resulting HTML buffer, but will not change current
 ;; buffer or move the point.
 
 ;; I tried to make the package elisp-compatible with multiple Emacsen,
@@ -86,13 +85,15 @@
       (byte-compiler-options
 	(warnings (- unresolved))))
   (defvar font-lock-auto-fontify)
+  (defvar font-lock-support-mode)
   (defvar global-font-lock-mode)
   (when (and (eq emacs-major-version 19)
 	     (not (string-match "XEmacs" emacs-version)))
-    ;; 19.34 fails to autoload cl-extra even when `cl' is loaded.
+    ;; Older versions of GNU Emacs fail to autoload cl-extra even when
+    ;; `cl' is loaded.
     (load "cl-extra")))
 
-(defconst htmlize-version "1.12")
+(defconst htmlize-version "1.16")
 
 ;; Incantations to make custom stuff work without customize, e.g. on
 ;; XEmacs 19.14 or GNU Emacs 19.34.
@@ -101,8 +102,10 @@
       (require 'custom)
     (error nil))
   (if (and (featurep 'custom) (fboundp 'custom-declare-variable))
-      nil ;; We've got what we needed
-    ;; No custom or obsolete custom, hack around it.
+      nil				; we've got what we needed
+    ;; No custom or obsolete custom, define surrogates.  Define all
+    ;; three macros, so we don't hose another library that expects
+    ;; e.g. `defface' to work after (fboundp 'defcustom) succeeds.
     (defmacro defgroup (&rest ignored) nil)
     (defmacro defcustom (var value doc &rest ignored)
       `(defvar ,var ,value ,doc))
@@ -178,7 +181,7 @@ that is done by ensuring the correct \"file coding system\" for the
 buffer.)  If you don't understand what that means, this option is
 probably not for you."
   :type '(choice (const :tag "Unset" nil)
-		 string )
+		 string)
   :group 'htmlize)
 
 (defcustom htmlize-convert-nonascii-to-entities (featurep 'mule)
@@ -253,32 +256,34 @@ Set this to nil if you prefer the default (fundamental) mode."
 
 (defvar htmlize-before-hook nil
   "Hook run before htmlizing a buffer.
-The hook is run in the original buffer (not HTML buffer), so you may
-wish to add `font-lock-fontify-buffer' here.")
+The hook functions are run in the source buffer (not the resulting HTML
+buffer).")
 
 (defvar htmlize-after-hook nil
   "Hook run after htmlizing a buffer.
-Unlike `htmlize-before-hook', these functions are run in the HTML
-buffer.  You may use them to modify the outlook of the final HTML
+Unlike `htmlize-before-hook', these functions are run in the generated
+HTML buffer.  You may use them to modify the outlook of the final HTML
 output.")
 
 (defvar htmlize-file-hook nil
-  "Hook run after htmlizing a file, and before writing it out to disk.
-This is run by the `htmlize-file'.")
+  "Hook run by `htmlize-file' after htmlizing a file, but before saving it.")
 
-;;; Basic cross-Emacs compatibility.
+;;; Some cross-Emacs compatibility.
 
 ;; I try to conditionalize on features rather than Emacs version, but
 ;; in some cases checking against the version *is* necessary.
 (defconst htmlize-running-xemacs (string-match "XEmacs" emacs-version))
 
 (eval-and-compile
-  ;; Technically these should probably be defined with the htmlize-
-  ;; prefix -- but then they're not properly fontified or indented,
-  ;; so I'll just go ahead and define save-current-buffer and
-  ;; with-current-buffer if they're not available.  If someone finds a
-  ;; good reason why this is evil, I'll put these in the "htmlize-"
-  ;; namespace.
+  ;; save-current-buffer, with-current-buffer, and with-temp-buffer
+  ;; are not available in 19.34 and in older XEmacsen.  Strictly
+  ;; speaking, we should stick to our own namespace and define and use
+  ;; htmlize-save-current-buffer, etc.  But non-standard special forms
+  ;; are a pain because they're not properly fontified or indented and
+  ;; because they look weird and ugly.  So I'll just go ahead and
+  ;; define the real ones if they're not available.  If someone
+  ;; convinces me that this breaks something, I'll switch to the
+  ;; "htmlize-" namespace.
   (unless (fboundp 'save-current-buffer)
     (defmacro save-current-buffer (&rest forms)
       `(let ((__scb_current (current-buffer)))
@@ -599,7 +604,8 @@ If no rgb.txt file is found, return nil."
 			       (string-to-number (match-string 3)))))
 		(t
 		 (error
-		  "Unrecognized line in rgb.txt: %s"
+		  "Unrecognized line in %s: %s"
+		  rgb-file
 		  (buffer-substring (point) (progn (end-of-line) (point))))))
 	  (forward-line 1))))
     hash))
@@ -1017,7 +1023,7 @@ property and by buffer overlays that specify `face'."
   (let ((sym (intern (format "htmlize-%s-%s" htmlize-output-type method))))
     (indirect-function (if (fboundp sym) sym 'ignore))))
 
-;;; CSS1 support
+;;; CSS based output support.
 
 (defun htmlize-css-doctype ()
   nil					; no doc-string
@@ -1091,7 +1097,7 @@ property and by buffer overlays that specify `face'."
     (ignore fstruct)			; shut up the byte-compiler
     (princ "</span>" buffer)))
 
-;;; <font> support
+;;; `font' tag based output support.
 
 (defun htmlize-font-doctype ()
   nil					; no doc-string
@@ -1172,6 +1178,9 @@ property and by buffer overlays that specify `face'."
     ;; Protect against the hook changing the current buffer.
     (save-excursion
       (run-hooks 'htmlize-before-hook))
+    ;; Convince font-lock support modes to fontify the entire buffer
+    ;; in advance.
+    (htmlize-ensure-fontified)
     (clrhash htmlize-extended-character-cache)
     (let* ((buffer-faces (htmlize-faces-in-buffer))
 	   (face-map (htmlize-make-face-map (adjoin 'default buffer-faces)))
@@ -1182,7 +1191,9 @@ property and by buffer overlays that specify `face'."
 					      (file-name-nondirectory
 					       (buffer-file-name)))
 					   "*html*")))
-	   (title (buffer-name (current-buffer))))
+	   (title (if (buffer-file-name)
+		      (file-name-nondirectory (buffer-file-name))
+		    (buffer-name))))
       ;; Initialize HTMLBUF and insert the HTML prolog.
       (with-current-buffer htmlbuf
 	(buffer-disable-undo)
@@ -1255,12 +1266,48 @@ property and by buffer overlays that specify `face'."
 	(buffer-enable-undo))
       htmlbuf)))
 
+;; Utility functions.
+
+(defun htmlize-ensure-fontified ()
+  ;; If font-lock is being used, ensure that the "support" modes
+  ;; actually fontify the buffer.  If font-lock is not in use, we
+  ;; don't care because, except in htmlize-file, we don't force
+  ;; font-lock on the user.
+  (when (and (boundp 'font-lock-mode)
+	     font-lock-mode)
+    ;; In part taken from ps-print-ensure-fontified in GNU Emacs 21.
+    (cond
+     ((and (boundp 'jit-lock-mode)
+	   (symbol-value 'jit-lock-mode))
+      (jit-lock-fontify-now (point-min) (point-max)))
+     ((and (boundp 'lazy-lock-mode)
+	   (symbol-value 'lazy-lock-mode))
+      (lazy-lock-fontify-region (point-min) (point-max)))
+     ((and (boundp 'lazy-shot-mode)
+	   (symbol-value 'lazy-shot-mode))
+      ;; lazy-shot is amazing in that it must *refontify* the region,
+      ;; even if the whole buffer has already been fontified.  <sigh>
+      (lazy-shot-fontify-region (point-min) (point-max)))
+     ;; There's also fast-lock, but we don't need to handle specially,
+     ;; I think.  fast-lock doesn't really defer fontification, it
+     ;; just saves it to an external cache so it's not done twice.
+     )))
+
+
 ;;;###autoload
 (defun htmlize-buffer (&optional buffer)
-  "Convert buffer to HTML, preserving the text colors and decorations.
+  "Convert BUFFER to HTML, preserving colors and decorations.
+
 The generated HTML is available in a new buffer, which is returned.
-When invoked interactively, the new buffer is selected in the
-current window."
+When invoked interactively, the new buffer is selected in the current
+window.  The title of the generated document will be set to the buffer's
+file name or, if that's not available, to the buffer's name.
+
+Note that htmlize doesn't fontify your buffers, it only uses the
+decorations that are already present.  If you don't set up font-lock or
+something else to fontify your buffers, the resulting HTML will be
+plain.  Likewise, if you don't like the choice of colors, fix the mode
+that created them, or simply alter the faces it uses."
   (interactive)
   (let ((htmlbuf (with-current-buffer (or buffer (current-buffer))
 		   (htmlize-buffer-1))))
@@ -1270,10 +1317,8 @@ current window."
 
 ;;;###autoload
 (defun htmlize-region (beg end)
-  "Convert the region to HTML, preserving the text colors and decorations.
-The generated HTML is available in a new buffer, which is returned.
-When invoked interactively, the new buffer is selected in the
-current window."
+  "Convert the region to HTML, preserving colors and decorations.
+See `htmlize-buffer' for details."
   (interactive "r")
   ;; Don't let zmacs region highlighting end up in HTML.
   (when (fboundp 'zmacs-deactivate-region)
@@ -1289,12 +1334,12 @@ current window."
   "Make an HTML file name from FILE.
 
 In its default implementation, this simply appends `.html' to FILE.
-This function is called by htmlize to create the buffer file name,
-and by `htmlize-file' to create the target file name.
+This function is called by htmlize to create the buffer file name, and
+by `htmlize-file' to create the target file name.
 
-More elaborate transformations are conceivable, such as changing
-FILE's extension to `.html' (\"file.c\" -> \"file.html\").  If you
-want them, overload this function to do it and htmlize will comply."
+More elaborate transformations are conceivable, such as changing FILE's
+extension to `.html' (\"file.c\" -> \"file.html\").  If you want them,
+overload this function to do it and htmlize will comply."
   (concat file ".html"))
 
 ;; Older implementation of htmlize-make-file-name that changes FILE's
@@ -1310,57 +1355,63 @@ want them, overload this function to do it and htmlize will comply."
 
 ;;;###autoload
 (defun htmlize-file (file &optional target)
-  "Find FILE, fontify it, convert it to HTML, and save the result.
+  "Load FILE, fontify it, convert it to HTML, and save the result.
 
-This function does not modify current buffer or point.  If FILE is
-already being visited in a buffer, the contents of that buffer are
-used for HTML-ization.  Otherwise, FILE is read into a temporary
-buffer, which is disposed of after use.  FILE's buffer is explicitly
-fontified before HTML-ization.  If a form of highlighting other than
-font-lock is desired, please use `htmlize-buffer' directly.
+Contents of FILE are inserted into a temporary buffer, whose major mode
+is set with `normal-mode' as appropriate for the file type.  The buffer
+is subsequently fontified with `font-lock' and converted to HTML.  Note
+that, unlike `htmlize-buffer', this function explicitly turns on
+font-lock.  If a form of highlighting other than font-lock is desired,
+please use `htmlize-buffer' directly on buffers so highlighted.
 
-The function `htmlize-make-file-name', is used to determine the name
-of the resulting HTML file.  In normal cases, the FILE's extension is
-replaced with `html', e.g. \"foo.c\" becomes \"foo.html\".  See the
-documentation of `htmlize-make-file-name' for more details.
+Buffers currently visiting FILE are unaffected by this function.  The
+function does not change current buffer or move the point.
 
-If TARGET is specified and names a directory, the resulting file will
-be saved there instead of to FILE's directory.  If TARGET is specified
-and does not name a directory, it will be used as output file name."
+If TARGET is specified and names a directory, the resulting file will be
+saved there instead of to FILE's directory.  If TARGET is specified and
+does not name a directory, it will be used as output file name."
   (interactive (list (read-file-name
 		      "HTML-ize file: "
 		      nil nil nil (and (buffer-file-name)
 				       (file-name-nondirectory
 					(buffer-file-name))))))
-  (let* ((was-visited (get-file-buffer file))
-	 ;; Prevent `find-file-noselect' from triggering font-lock.
-	 ;; We'll fontify manually below.  Set these to nil to prevent
-	 ;; double fontification; we'll fontify manually below.
-	 (font-lock-auto-fontify nil)
-	 (global-font-lock-mode nil)
-	 ;; Determine the output file name.
-	 (output-file (if (and target (not (file-directory-p target)))
-			  target
-			(expand-file-name
-			 (htmlize-make-file-name (file-name-nondirectory file))
-			 (or target (file-name-directory file))))))
-    ;; Find FILE, fontify it, HTML-ize it, and write it to FILE.html.
-    ;; The `unwind-protect' forms are used to make certain the
-    ;; temporary buffers go away in case of unexpected errors or C-g.
-    (with-current-buffer (find-file-noselect file t)
-      (unwind-protect
-	  (progn
-	    (font-lock-fontify-buffer)
-	    (with-current-buffer (htmlize-buffer-1)
-	      (unwind-protect
-		  (progn
-		    (run-hooks 'htmlize-file-hook)
-		    (write-region (point-min) (point-max) output-file))
-		(kill-buffer (current-buffer)))))
-	;; If FILE was not previously visited, its buffer is temporary
-	;; and must be killed.
-	(unless was-visited
-	  (kill-buffer (current-buffer))))))
+  (let ((output-file (if (and target (not (file-directory-p target)))
+			 target
+		       (expand-file-name
+			(htmlize-make-file-name (file-name-nondirectory file))
+			(or target (file-name-directory file)))))
+	;; Try to prevent `find-file-noselect' from triggering
+	;; font-lock because we'll fontify explicitly below.
+	(font-lock-mode nil)
+	(font-lock-auto-fontify nil)
+	(global-font-lock-mode nil)
+	;; Ignore the size limit for the purposes of htmlization.
+	(font-lock-maximum-size nil)
+	;; Disable font-lock support modes.  This will only work in
+	;; more recent Emacs versions, so htmlize-buffer-1 still needs
+	;; to call htmlize-ensure-fontified.
+	(font-lock-support-mode nil))
+    (with-temp-buffer
+      ;; Insert FILE into the temporary buffer.
+      (insert-file-contents file)
+      ;; Set the file name so normal-mode and htmlize-buffer-1 pick it
+      ;; up.  Restore it afterwards so with-temp-buffer's kill-buffer
+      ;; doesn't complain about killing a modified buffer.
+      (let ((buffer-file-name file))
+	;; Set the major mode for the sake of font-lock.
+	(normal-mode)
+	(font-lock-mode 1)
+	(unless font-lock-mode
+	  ;; In GNU Emacs (font-lock-mode 1) doesn't force font-lock,
+	  ;; contrary to the documentation.  This seems to work.
+	  (font-lock-fontify-buffer))
+	;; htmlize the buffer and save the HTML.
+	(with-current-buffer (htmlize-buffer-1)
+	  (unwind-protect
+	      (progn
+		(run-hooks 'htmlize-file-hook)
+		(write-region (point-min) (point-max) output-file))
+	    (kill-buffer (current-buffer)))))))
   ;; I haven't decided on a useful return value yet, so just return
   ;; nil.
   nil)

@@ -98,7 +98,7 @@
   (defvar font-lock-auto-fontify)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "0.65")
+(defconst htmlize-version "0.67")
 
 ;; Incantations to make custom stuff work without customize, e.g. on
 ;; XEmacs 19.14 or GNU Emacs 19.34.
@@ -490,8 +490,8 @@ in the system directories."
     (with-temp-buffer
       (insert-file-contents rgb-file)
       (while (not (eobp))
-	(cond ((looking-at "^!")
-	       ;; Skip comments
+	(cond ((looking-at "^\\s-*\\([!#]\\|$\\)")
+	       ;; Skip comments and empty lines.
 	       )
 	      ((looking-at "[ \t]*\\([0-9]+\\)[ \t]+\\([0-9]+\\)[ \t]+\\([0-9]+\\)[ \t]+\\(.*\\)")
 	       (setf (gethash (downcase (match-string 4)) hash)
@@ -822,6 +822,15 @@ in the system directories."
 	  (and (htmlize-face-boldp      face-object) "</b>")
 	  "</font>"))
 
+(defun htmlize-despam-address (string)
+  "Replace every occurrence of '@' in STRING with &#64;.
+`htmlize-make-hyperlinks' uses this to spam-protect mailto links
+without modifying their meaning."
+  ;; Suggested by Ville Skytta.
+  (while (string-match "@" string)
+    (setq string (replace-match "&#64;" nil t string)))
+  string)
+
 (defun htmlize-make-hyperlinks ()
   "Make hyperlinks in HTML."
   ;; Function originally submitted by Ville Skytta.  Rewritten by
@@ -833,7 +842,11 @@ in the system directories."
     (let ((address (match-string 3))
 	  (link-text (match-string 1)))
       (delete-region (match-beginning 0) (match-end 0))
-      (insert "&lt;<a href=\"mailto:" address "\">" link-text "</a>&gt;")))
+      (insert "&lt;<a href=\"mailto:"
+	      (htmlize-despam-address address)
+	      "\">"
+	      (htmlize-despam-address link-text)
+	      "</a>&gt;")))
   (goto-char (point-min))
   (while (re-search-forward "&lt;\\(\\(URL:\\)?\\([a-zA-Z]+://[^;]+\\)\\)&gt;"
 			    nil t)

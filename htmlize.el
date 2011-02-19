@@ -97,7 +97,7 @@
   (defvar font-lock-auto-fontify)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "0.57")
+(defconst htmlize-version "0.62")
 
 ;; Incantations to make custom stuff work without customize, e.g. on
 ;; XEmacs 19.14 or GNU Emacs 19.34.
@@ -184,9 +184,11 @@ This is run by the `htmlize-file'.")
 
 ;;; Protection of HTML strings.
 
-;; This is only a stub.  Implementing this to be correct under all
-;; variants of Mule and Mule-less Emacsen is extremely hard and
-;; error-prone.  Leave it commented for now.
+;; This is only a stub.  Implementing this correctly is extremely hard
+;; due to two things: the multitude of ways that international
+;; characters can be represented in HTML, and the incompatibilities
+;; between various implementations of Mule.  Leave it commented out
+;; for now.
 
 ;(defvar htmlize-protected-chars
 ;  '((?& amp)
@@ -485,7 +487,10 @@ in the system directories."
 ;; non-nil, background color is used.
 (defun htmlize-face-rgb-string-direct (face &optional bg-p)
   (apply #'format "#%02x%02x%02x"
-	 (if (fboundp 'color-instance-rgb-components)
+	 ;; Here I cannot conditionalize on (fboundp ...) because
+	 ;; ps-print under some versions of GNU Emacs defines its own
+	 ;; dummy version of color-instance-rgb-components.
+	 (if htmlize-running-xemacs
 	     (mapcar (lambda (arg)
 		       (/ arg 256))
 		     (color-instance-rgb-components
@@ -641,7 +646,9 @@ in the system directories."
 			  (htmlize-face-rgb-foreground default-face-object))))
       (push (format "color: %s;" (htmlize-face-rgb-foreground face-object))
 	    result))
-    ;; Here we used to say:
+    ;; Specification of background-color used to be conditionalized
+    ;; like this, to ensure that we specify the background color only
+    ;; for faces that differ from the default face:
     ;;    (when (or (not default-face-object)
     ;;              (not (equal (htmlize-face-rgb-background face-object)
     ;;                          (htmlize-face-rgb-background default-face-object))))
@@ -704,11 +711,34 @@ in the system directories."
 
 ;;; <font> support
 
-;; We use the HTML Pro DTD by default.  Note that under W3-procured
-;; DTD's it is illegal to specify <font> under <pre>.
 (defun htmlize-font-doctype ()
   nil					; no doc-string
-  "<!DOCTYPE HTML PUBLIC \"+//Silmaril//DTD HTML Pro v0r11 19970101//EN\">")
+
+  ;; According to DTDs published by the W3C, it is illegal to embed
+  ;; <font> in <pre>.  This makes sense in general, but is bad for
+  ;; htmlize's intended usage of <font> to specify the document color.
+
+  ;; To make generated HTML legal, htmlize.el used to specify the SGML
+  ;; declaration of "HTML Pro" DTD here.  HTML Pro aka Silmaril DTD
+  ;; was a project whose goal was to produce a DTD that would
+  ;; encompass all the incompatible HTML extensions procured by
+  ;; Netscape, MSIE, and other players in the field.  Apparently the
+  ;; project got abandoned, the last available version being "Draft 0
+  ;; Revision 11" from January 1997, as documented at
+  ;; <http://validator.w3.org/sgml-lib/pro/html/dtds/htmlpro.html>.
+
+  ;; Since by now (2001) HTML Pro is remembered by none but the most
+  ;; die-hard early-web-days nostalgics and used by not even them,
+  ;; there is no use in specifying it.  So we return the standard HTML
+  ;; 4.0 declaration, which makes generated HTML technically illegal.
+  ;; If you have a problem with that, use the `css' generation engine
+  ;; which I believe creates fully conformant HTML.
+
+  "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\">"
+
+  ;; Now-abandond HTML Pro declaration.
+  ;"<!DOCTYPE HTML PUBLIC \"+//Silmaril//DTD HTML Pro v0r11 19970101//EN\">"
+  )
 
 (defun htmlize-font-body-tag ()
   (let ((face-object (gethash 'default htmlize-face-hash)))
@@ -736,7 +766,8 @@ in the system directories."
 
 ;;;###autoload
 (defun htmlize-buffer (&optional buffer)
-  "HTML-ize BUFFER."
+  "Convert buffer to HTML, preserving the font-lock colorization.
+HTML contents will be provided in a new buffer."
   (interactive)
   (or buffer
       (setq buffer (current-buffer)))
@@ -813,6 +844,17 @@ in the system directories."
     ;; to free up the used conses.
     (clrhash htmlize-face-hash)))
 
+;;;###autoload
+(defun htmlize-region (beg end)
+  "Convert the region to HTML, preserving the font-lock colorization."
+  (interactive "r")
+  ;; We don't want the region highlighting to get in the way.
+  (when (fboundp 'zmacs-deactivate-region)
+    (zmacs-deactivate-region))
+  (save-restriction
+    (narrow-to-region beg end)
+    (htmlize-buffer)))
+
 (defun htmlize-make-file-name (file)
   "Make an HTML file name from FILE.
 The HTML file name is the regular file name, with its extension
@@ -883,15 +925,15 @@ corresponding source file."
   (interactive
    (list
     (let (list file)
-      ;; Check for `ommadawn', because checking against nil doesn't do
-      ;; what you'd expect.
-      (while (not (eq (setq file (read-file-name "HTML-ize file (RET to finish): "
-						 (and list (file-name-directory
-							    (car list)))
-						 'ommadawn t))
-		      'ommadawn))
+      ;; Use empty string as DEFAULT because setting DEFAULT to nil
+      ;; defaults to the directory name, which is not what we want.
+      (while (not (equal (setq file (read-file-name "HTML-ize file (RET to finish): "
+						    (and list (file-name-directory
+							       (car list)))
+						    "" t))
+			 ""))
 	(push file list))
-      list)))
+      (nreverse list))))
   (dolist (file files)
     (htmlize-file file target-directory)))
 

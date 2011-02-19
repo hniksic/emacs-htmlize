@@ -27,7 +27,7 @@
 ;; decorations to HTML.  Mail to <hniksic@xemacs.org> to discuss
 ;; features and additions.  All suggestions are more than welcome.
 
-;; To use this, just switch to the buffer you want HTML-ized and type
+;; To use it, just switch to the buffer you want HTML-ized and type
 ;; `M-x htmlize-buffer'.  You will be switched to a new buffer that
 ;; contains the resulting HTML code.  You can edit and inspect this
 ;; buffer, or you can just save it with C-x C-w.  `M-x htmlize-file'
@@ -63,19 +63,23 @@
 ;; remove that particular dependency.  When byte-compiling under GNU
 ;; Emacs, you're likely to get some warnings; just ignore them.
 
-;; The latest version should be available at:
+;; The latest version is available as a git repository at:
 ;;
-;;        <http://fly.srk.fer.hr/~hniksic/emacs/htmlize.el>
+;;        <http://fly.srk.fer.hr/~hniksic/emacs/htmlize.git>
+;;
+;; The snapshot of the latest release can be obtained at:
+;;
+;;        <http://fly.srk.fer.hr/~hniksic/emacs/htmlize.el.cgi>
 ;;
 ;; You can find a sample of htmlize's output (possibly generated with
 ;; an older version) at:
 ;;
 ;;        <http://fly.srk.fer.hr/~hniksic/emacs/htmlize.el.html>
 
-;; Thanks go to the multitudes of people who have sent reports and
-;; contributed comments, suggestions, and fixes.  They include Ron
-;; Gut, Bob Weiner, Toni Drabik, Peter Breton, Thomas Vogels, Juri
-;; Linkov, Maciek Pasternacki, and many others.
+;; Thanks go to the many people who have sent reports and contributed
+;; comments, suggestions, and fixes.  They include Ron Gut, Bob
+;; Weiner, Toni Drabik, Peter Breton, Thomas Vogels, Juri Linkov,
+;; Maciek Pasternacki, and many others.
 
 ;; User quotes: "You sir, are a sick, sick, _sick_ person. :)"
 ;;                  -- Bill Perry, author of Emacs/W3

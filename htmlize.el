@@ -1,6 +1,6 @@
 ;; htmlize.el -- HTML-ize font-lock buffers
 
-;; Copyright (C) 1997,1998,1999,2000 Hrvoje Niksic
+;; Copyright (C) 1997,1998,1999,2000,2001,2002 Hrvoje Niksic
 
 ;; Author: Hrvoje Niksic <hniksic@xemacs.org>
 ;; Keywords: hypermedia, extensions
@@ -31,10 +31,10 @@
 ;; htmlize-buffer'.  After that, you should find yourself in an HTML
 ;; buffer, which you can save.  Alternatively, `M-x htmlize-file' will
 ;; find a file, font-lockify the buffer, and save the HTML version,
-;; all before you blink.  Even more alternatively, `M-x
-;; htmlize-many-files' will prompt you for a slew of files to undergo
-;; the same treatment.  `M-x htmlize-many-files-dired' will do the
-;; same for the files marked by dired.
+;; all before you blink.  Furthermore, `M-x htmlize-many-files' will
+;; prompt you for a slew of files to undergo the same treatment.  `M-x
+;; htmlize-many-files-dired' will do the same for the files marked by
+;; dired.
 
 ;; The code attempts to generate compliant HTML, but I can't make any
 ;; guarantees; I haven't yet bothered to run the generated markup
@@ -77,7 +77,8 @@
 ;;     <barranquero@laley-actualidad.es> for contributing fixes.
 ;;
 ;;   * A bunch of other people for sending reports and useful
-;;     comments.
+;;     comments.  I will not attempt to name them because I will
+;;     surely forget some.
 ;;
 
 ;; TODO: Should attempt to merge faces (utilize CSS for this?).
@@ -97,7 +98,7 @@
   (defvar font-lock-auto-fontify)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "0.62")
+(defconst htmlize-version "0.64")
 
 ;; Incantations to make custom stuff work without customize, e.g. on
 ;; XEmacs 19.14 or GNU Emacs 19.34.
@@ -133,6 +134,14 @@ the faces in the actual text with <span class=\"FACE\">.
 When set to `font', the properties will be set using layout tags
 <font>, <b>, <i>, <u>, and <strike>."
   :type '(choice (const css) (const font))
+  :group 'htmlize)
+
+(defcustom htmlize-generate-hyperlinks t
+  "*Non-nil means generate the hyperlinks for URLs and mail addresses.
+This is on by default; set it to nil if you don't want htmlize to
+insert hyperlinks in the resulting HTML.  (In which case you can still
+do your own hyperlinkification from htmlize-after-hook.)"
+  :type 'boolean
   :group 'htmlize)
 
 (defcustom htmlize-use-rgb-map t
@@ -636,7 +645,7 @@ in the system directories."
 
 (defun htmlize-css-doctype ()
   nil					; no doc-string
-  "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\">")
+  "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN\">")
 
 ;; Internal function; not a method.
 (defun htmlize-css-specs (face-object &optional default-face-object)
@@ -678,10 +687,20 @@ in the system directories."
 (defun htmlize-css-insert-head ()
   (insert "    <style type=\"text/css\">\n    <!--\n")
   (let ((default-face-object (gethash 'default htmlize-face-hash)))
-    (insert "      BODY {\n        "
+    (insert "      body {\n        "
 	    (mapconcat #'identity (htmlize-css-specs default-face-object)
 		       "\n        ")
-	    "\n      } /* default */\n")
+	    "
+      } /* default */
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }\n")
     (maphash
      (lambda (face face-object)
        (let ((cleaned-up-face-name (symbol-name face)))
@@ -694,7 +713,7 @@ in the system directories."
 						     cleaned-up-face-name)))
 	 (unless (eq face 'default)
 	   (let ((specs (htmlize-css-specs face-object default-face-object)))
-	     (insert "      span." (htmlize-face-css-name face-object))
+	     (insert "      ." (htmlize-face-css-name face-object))
 	     (if (null specs)
 		 (insert " {")
 	       (insert " {\n        "
@@ -734,9 +753,9 @@ in the system directories."
   ;; If you have a problem with that, use the `css' generation engine
   ;; which I believe creates fully conformant HTML.
 
-  "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\">"
+  "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN\">"
 
-  ;; Now-abandond HTML Pro declaration.
+  ;; Now-abandoned HTML Pro declaration.
   ;"<!DOCTYPE HTML PUBLIC \"+//Silmaril//DTD HTML Pro v0r11 19970101//EN\">"
   )
 
@@ -758,6 +777,35 @@ in the system directories."
 	  (and (htmlize-face-boldp      face-object) "</b>")
 	  "</font>"))
 
+(defun htmlize-make-hyperlinks ()
+  "Make hyperlinks in HTML."
+  ;; Function originally submitted by Ville Skytta.  Rewritten by
+  ;; Hrvoje Niksic, then modified by Ville Skytta and Hrvoje Niksic.
+  (goto-char (point-min))
+  (while (re-search-forward
+	  "&lt;\\(\\(mailto:\\)?\\([-=+_.a-zA-Z0-9]+@[-_.a-zA-Z0-9]+\\)\\)&gt;"
+	  nil t)
+    (let ((address (match-string 3))
+	  (link-text (match-string 1)))
+      (delete-region (match-beginning 0) (match-end 0))
+      (insert "&lt;<a href=\"mailto:" address "\">" link-text "</a>&gt;")))
+  (goto-char (point-min))
+  (while (re-search-forward "&lt;\\(\\(URL:\\)?\\([a-zA-Z]+://[^;]+\\)\\)&gt;"
+			    nil t)
+    (let ((url (match-string 3))
+	  (link-text (match-string 1)))
+      (delete-region (match-beginning 0) (match-end 0))
+      (insert "&lt;<a href=\"" url "\">" link-text "</a>&gt;"))))
+
+;; Tests for htmlize-make-hyperlinks:
+
+;; <mailto:hniksic@xemacs.org>
+;; <http://fly.srk.fer.hr>
+;; <URL:http://www.xemacs.org>
+;; <http://www.mail-archive.com/bbdb-info@xemacs.org/>
+;; <hniksic@xemacs.org>
+;; <xalan-dev-sc.10148567319.hacuhiucknfgmpfnjcpg-john=doe.com@xml.apache.org>
+
 (defmacro htmlize-method (method &rest args)
   (let ((func (gensym "hm-")))
     `(let ((,func (intern (format "htmlize-%s-%s" htmlize-output-type ',method))))
@@ -833,6 +881,8 @@ HTML contents will be provided in a new buffer."
 	    (princ (htmlize-method face-postjunk face-object) newbuf))
 	  (goto-char next-change))))
     (insert "</pre>\n  </body>\n</html>\n")
+    (when htmlize-generate-hyperlinks
+      (htmlize-make-hyperlinks))
     (goto-char (point-min))
     (when htmlize-html-major-mode
       ;; The sucky thing here is that the minor modes, most notably

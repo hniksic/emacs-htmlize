@@ -52,11 +52,12 @@
 
 ;; The latest version should be available at:
 ;;
-;;        <URL:http://mraz.iskon.hr/~hniksic/htmlize.el>
+;;        <URL:http://fly.srk.fer.hr/~hniksic/emacs/htmlize.el>
 ;;
-;; You can find the sample htmlize output (run on `htmlize.el') at:
+;; You can find the sample htmlize output (run on an older version of
+;; `htmlize.el') at:
 ;;
-;;        <URL:http://mraz.iskon.hr/~hniksic/htmlize.html>
+;;        <URL:http://fly.srk.fer.hr/~hniksic/emacs/htmlize.html>
 ;;
 
 ;; Thanks go to:
@@ -98,7 +99,7 @@
   (defvar font-lock-auto-fontify)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "0.50")
+(defconst htmlize-version "0.55")
 
 ;; Incantations to make custom stuff work without customize, e.g. on
 ;; XEmacs 19.14 or GNU Emacs 19.34.
@@ -155,6 +156,14 @@ non-X devices."
 		 (const :tag "Always"       force))
   :group 'htmlize)
 
+(defcustom htmlize-html-major-mode nil
+  "The mode the newly created HTML buffer will be put in.
+Set this to nil if you prefer the default (fundamental) mode."
+  :type '(radio (const :tag "No mode (fundamental)" nil)
+		 (function-item html-mode)
+		 (function :tag "User-defined major mode"))
+  :group 'htmlize)
+
 (defvar htmlize-before-hook nil
   "Hook run before htmlizing a buffer.
 The hook is run in the original buffer (not HTML buffer), so you may
@@ -178,8 +187,8 @@ This is run by the `htmlize-file'.")
 ;;; Protection of HTML strings.
 
 ;; This is only a stub.  Implementing this to be correct under all
-;; variants of Mule and Mule-disabled Emacs is extremely hard.  Leave
-;; it commented for now.
+;; variants of Mule and Mule-less Emacsen is extremely hard and
+;; error-prone.  Leave it commented for now.
 
 ;(defvar htmlize-protected-chars
 ;  '((?& amp)
@@ -287,6 +296,10 @@ This is run by the `htmlize-file'.")
 ;    (255 yuml))
 ;  "Mapping between Latin 1 characters and their corresponding HTML entities.")
 
+(if (fboundp 'char-int)
+    (defalias 'htmlize-char-int 'char-int)
+  (defalias 'htmlize-char-int 'identity))
+
 (defvar htmlize-character-table
   (let ((table (make-vector 256 ?\0)))
     (dotimes (i 256)
@@ -303,14 +316,20 @@ This is run by the `htmlize-file'.")
   (if (not (string-match "[&<>\"]" string))
       string
     (mapconcat (lambda (char)
-		 ;; This will signal an error if CHAR is something
-		 ;; outside the 0-255 range.  Maybe that is just as
-		 ;; well, as I've no idea how to convert a Mule
-		 ;; character to HTML.
-		 (aref htmlize-character-table char))
+		 (if (> (htmlize-char-int char) 255)
+		     ;; Don't know what to do with I18N chars.
+		     ;; Properly converting them to HTML is hard, so
+		     ;; this "leave-it-as-it-is" tactics will probably
+		     ;; yield the least amount of damage.
+		     (char-to-string char)
+		   (aref htmlize-character-table char)))
 	       string "")))
 
-;; Currently unused.
+;; Currently unused.  If used, this function could be a possible
+;; optimization over htmlize-protect-string because it doesn't cons.
+;; Also, it could use the extended features of `translate-region'
+;; available in recent XEmacsen.
+
 ;(defun htmlize-protect-region (start end)
 ;  (goto-char start)
 ;  (let (match replacement)
@@ -440,12 +459,12 @@ in the system directories."
        (defun htmlize-face-foreground (face)
 	 (or (face-foreground face)
 	     (face-foreground 'default)
-	     (frame-parameter (selected-frame) 'foreground-color)
+	     (cdr (assq 'foreground-color (frame-parameters)))
 	     "black"))
        (defun htmlize-face-background (face)
 	 (or (face-background face)
 	     (face-background 'default)
-	     (frame-parameter (selected-frame) 'background-color)
+	     (cdr (assq 'background-color (frame-parameters)))
 	     "white")))
       (t
        (error "WTF?!")))
@@ -551,6 +570,10 @@ in the system directories."
 		  (setq name (replace-match "X" t t name)))
 		(when (string-match "^[-0-9]" name)
 		  (setq name (concat "X" name)))
+		;; After these transformations, the face could come
+		;; out empty.
+		(when (equal name "")
+		  (setq name "face"))
 		(let ((i 1))
 		  (while (member name face-fancy-names)
 		    (setq name (format "%s-%d" name i))
@@ -563,7 +586,10 @@ in the system directories."
 (defun htmlize-faces-in-buffer ()
   "Return a list of faces used by the extents in the current buffer."
   (let (faces)
-    (if (fboundp 'map-extents)
+    ;; just (fboundp 'map-extents) is not enough because W3 defines
+    ;; its own variant of `map-extents' under FSF.
+    (if (and (fboundp 'map-extents)
+	     (string-match "XEmacs" emacs-version))
 	(map-extents (lambda (extent ignored)
 		       (let ((face (extent-face extent)))
 			 (when (consp face)
@@ -601,11 +627,15 @@ in the system directories."
 			  (htmlize-face-rgb-foreground default-face-object))))
       (push (format "color: %s;" (htmlize-face-rgb-foreground face-object))
 	    result))
-    (when (or (not default-face-object)
-	      (not (equal (htmlize-face-rgb-background face-object)
-			  (htmlize-face-rgb-background default-face-object))))
-      (push (format "background-color: %s;"
-		    (htmlize-face-rgb-background face-object)) result))
+    ;; Here we used to say:
+    ;;    (when (or (not default-face-object)
+    ;;              (not (equal (htmlize-face-rgb-background face-object)
+    ;;                          (htmlize-face-rgb-background default-face-object))))
+    ;; However, Josh Howard <jrh@zeppelin.net> reports that the
+    ;; `background-color' property is not inheritable and needs to be
+    ;; specified everywhere where `color' is.
+    (push (format "background-color: %s;"
+		  (htmlize-face-rgb-background face-object)) result)
     (when (and (htmlize-face-boldp face-object)
 	       (or (not default-face-object)
 		   (not (htmlize-face-boldp default-face-object))))
@@ -700,7 +730,15 @@ in the system directories."
     (set-buffer buffer)
     (run-hooks 'htmlize-before-hook)
     (htmlize-make-face-hash (cons 'default (htmlize-faces-in-buffer))))
-  (let* ((newbuf (generate-new-buffer "*html*"))
+  (let* ((newbuf (with-current-buffer buffer
+		   ;; We use with-current-buffer to make sure that the
+		   ;; new buffer's default-directory gets inherited
+		   ;; from BUFFER.
+		   (generate-new-buffer (if (buffer-file-name)
+					    (htmlize-make-file-name
+					     (file-name-nondirectory
+					      (buffer-file-name)))
+					  "*html*"))))
 	 next-change face face-object)
     (switch-to-buffer newbuf)
     (buffer-disable-undo)
@@ -744,22 +782,51 @@ in the system directories."
 	  (goto-char next-change))))
     (insert "</pre>\n  </body>\n</html>\n")
     (goto-char (point-min))
+    (when htmlize-html-major-mode
+      ;; The sucky thing here is that the minor modes, most notably
+      ;; font-lock-mode, won't be initialized.  Oh well.
+      (funcall htmlize-html-major-mode))
     (run-hooks 'htmlize-after-hook)
     (buffer-enable-undo)
     ;; We won't be needing the stored data anymore, so allow next gc
     ;; to free up the used conses.
     (clrhash htmlize-face-hash)))
 
-(defun htmlize-make-file-name (file dir)
-  (let* ((nondir (file-name-nondirectory file))
-	 (extension (htmlize-file-name-extension file))
-	 (sans-extension (file-name-sans-extension nondir)))
-    (expand-file-name (if (or (equal extension "html")
-			      (equal extension "htm")
-			      (equal sans-extension ""))
-			  (concat nondir ".html")
-			(concat sans-extension ".html"))
-		      (or dir (file-name-directory file)))))
+(defun htmlize-make-file-name (file)
+  "Make an HTML file name from FILE.
+The HTML file name is the regular file name, with its extension
+changed to `.html'.  The exception are the file names which don't
+have an extension, or those which are already `.html' -- in these
+cases, \".html\" is simply appended.
+
+Some examples:
+
+ (htmlize-make-file-name \"foo.c\")
+   ==> \"foo.html\"
+
+ (htmlize-make-file-name \"foo.b.c\")
+   ==> \"foo.b.html\"
+
+ (htmlize-make-file-name \"foo\")
+   ==> \"foo.html\"
+
+ (htmlize-make-file-name \"foo.html\")
+   ==> \"foo.html.html\""
+  (let ((extension (htmlize-file-name-extension file))
+	(sans-extension (file-name-sans-extension file)))
+    (if (or (equal extension "html")
+	    (equal extension "htm")
+	    (equal sans-extension ""))
+	(concat file ".html")
+      (concat sans-extension ".html"))))
+
+(defun htmlize-make-absolute-file-name (file dir)
+  "Create an absolute HTML file name with the desired directory.
+That means, run FILE through `htmlize-make-file-name', and
+expand it to either DIR or, if DIR is nil, to its own
+directory name."
+  (expand-file-name (htmlize-make-file-name (file-name-nondirectory file))
+		    (or dir (file-name-directory file))))
 
 ;;;###autoload
 (defun htmlize-file (file &optional target-directory)
@@ -781,7 +848,7 @@ to that directory, instead of to the FILE's directory."
     (htmlize-buffer)
     (run-hooks 'htmlize-file-hook)
     (write-region (point-min) (point-max)
-		  (htmlize-make-file-name file target-directory))
+		  (htmlize-make-absolute-file-name file target-directory))
     (kill-buffer (current-buffer))
     (unless was-visited
       (kill-buffer origbuf))))

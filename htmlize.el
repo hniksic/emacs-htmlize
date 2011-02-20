@@ -295,18 +295,8 @@ output.")
 (defconst htmlize-running-xemacs (string-match "XEmacs" emacs-version))
 
 ;; We need a function that efficiently finds the next change of a
-;; property (usually `face'), preferably regardless of whether the
+;; property (usually the `face' property) regardless of whether the
 ;; change occurred because of a text property or an extent/overlay.
-;; As it turns out, it is not easy to do that compatibly.
-;;
-;; Under XEmacs, `next-single-property-change' does that.  Under GNU
-;; Emacs beginning with version 21, `next-single-char-property-change'
-;; is available and does the same.  GNU Emacs 20 had
-;; `next-char-property-change', which we can use.  GNU Emacs 19 didn't
-;; provide any means for simultaneously examining overlays and text
-;; properties, so when using Emacs 19.34, we punt and fall back to
-;; `next-single-property-change', thus ignoring overlays altogether.
-
 (cond
  (htmlize-running-xemacs
   (defun htmlize-next-change (pos prop &optional limit)
@@ -1116,22 +1106,18 @@ property and by buffer overlays that specify `face'."
 	     (setq all-faces (nconc all-faces list)))
 	   all-faces))))
 
-;; htmlize supports generating HTML in two several fundamentally
-;; different ways, one with the use of CSS and nested <span> tags, and
-;; the other with the use of the old <font> tags.  Rather than adding
-;; a bunch of ifs to many places, we take a semi-OO approach.
-;; `htmlize-buffer-1' calls a number of "methods", which indirect to
-;; the functions that depend on `htmlize-output-type'.  The currently
-;; used methods are `doctype', `insert-head', `body-tag', and
-;; `insert-text'.  Not all output types define all methods.
+;; htmlize supports generating HTML in several flavors, some of which
+;; use CSS, and others the <font> element.  We take an OO approach and
+;; define "methods" that indirect to the functions that depend on
+;; `htmlize-output-type'.  The currently used methods are `doctype',
+;; `insert-head', `body-tag', and `insert-text'.  Not all output types
+;; define all methods.
 ;;
 ;; Methods are called either with (htmlize-method METHOD ARGS...) 
 ;; special form, or by accessing the function with
 ;; (htmlize-method-function 'METHOD) and calling (funcall FUNCTION).
 ;; The latter form is useful in tight loops because `htmlize-method'
 ;; conses.
-;;
-;; Currently defined output types are `css' and `font'.
 
 (defmacro htmlize-method (method &rest args)
   ;; Expand to (htmlize-TYPE-METHOD ...ARGS...).  TYPE is the value of

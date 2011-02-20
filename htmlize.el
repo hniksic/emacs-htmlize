@@ -55,13 +55,13 @@
 ;; return the resulting HTML buffer, but will not change current
 ;; buffer or move the point.
 
-;; I tried to make the package elisp-compatible with multiple Emacsen,
-;; specifically aiming for XEmacs 19.14+ and GNU Emacs 19.34+.  Please
-;; let me know if it doesn't work on some of those, and I'll try to
-;; fix it.  I relied heavily on the presence of CL extensions,
-;; especially for cross-emacs compatibility; please don't try to
-;; remove that particular dependency.  When byte-compiling under GNU
-;; Emacs, you're likely to get some warnings; just ignore them.
+;; htmlize aims for compatibility with Emacsen 21 and later.  Please
+;; let me know if it doesn't work on the version of XEmacs or GNU
+;; Emacs that you are using.  The package relies on the presence of CL
+;; extensions, especially for cross-emacs compatibility; please don't
+;; try to remove that dependency.  Yes, I know I require `cl' at
+;; runtime, and I prefer it that way.  When byte-compiling under GNU
+;; Emacs, you're likely to get a few warnings; just ignore them.
 
 ;; The latest version is available as a git repository at:
 ;;
@@ -94,31 +94,9 @@
 	(warnings (- unresolved))))
   (defvar font-lock-auto-fontify)
   (defvar font-lock-support-mode)
-  (defvar global-font-lock-mode)
-  (when (and (eq emacs-major-version 19)
-	     (not (string-match "XEmacs" emacs-version)))
-    ;; Older versions of GNU Emacs fail to autoload cl-extra even when
-    ;; `cl' is loaded.
-    (load "cl-extra")))
+  (defvar global-font-lock-mode))
 
 (defconst htmlize-version "1.39")
-
-;; Incantations to make custom stuff work without customize, e.g. on
-;; XEmacs 19.14 or GNU Emacs 19.34.
-(eval-and-compile
-  (condition-case ()
-      (require 'custom)
-    (error nil))
-  (if (and (featurep 'custom) (fboundp 'custom-declare-variable))
-      nil				; we've got what we needed
-    ;; No custom or obsolete custom, define surrogates.  Define all
-    ;; three macros, so we don't hose another library that expects
-    ;; e.g. `defface' to work after (fboundp 'defcustom) succeeds.
-    (defmacro defgroup (&rest ignored) nil)
-    (defmacro defcustom (var value doc &rest ignored)
-      `(defvar ,var ,value ,doc))
-    (defmacro defface (face value doc &rest stuff)
-      `(make-face ,face))))
 
 (defgroup htmlize nil
   "Convert buffer text and faces to HTML."
@@ -316,36 +294,6 @@ output.")
 ;; in some cases checking against the version *is* necessary.
 (defconst htmlize-running-xemacs (string-match "XEmacs" emacs-version))
 
-(eval-and-compile
-  ;; save-current-buffer, with-current-buffer, and with-temp-buffer
-  ;; are not available in 19.34 and in older XEmacsen.  Strictly
-  ;; speaking, we should stick to our own namespace and define and use
-  ;; htmlize-save-current-buffer, etc.  But non-standard special forms
-  ;; are a pain because they're not properly fontified or indented and
-  ;; because they look weird and ugly.  So I'll just go ahead and
-  ;; define the real ones if they're not available.  If someone
-  ;; convinces me that this breaks something, I'll switch to the
-  ;; "htmlize-" namespace.
-  (unless (fboundp 'save-current-buffer)
-    (defmacro save-current-buffer (&rest forms)
-      `(let ((__scb_current (current-buffer)))
-	 (unwind-protect
-	     (progn ,@forms)
-	   (set-buffer __scb_current)))))
-  (unless (fboundp 'with-current-buffer)
-    (defmacro with-current-buffer (buffer &rest forms)
-      `(save-current-buffer (set-buffer ,buffer) ,@forms)))
-  (unless (fboundp 'with-temp-buffer)
-    (defmacro with-temp-buffer (&rest forms)
-      (let ((temp-buffer (gensym "tb-")))
-	`(let ((,temp-buffer
-		(get-buffer-create (generate-new-buffer-name " *temp*"))))
-	   (unwind-protect
-	       (with-current-buffer ,temp-buffer
-		 ,@forms)
-	     (and (buffer-live-p ,temp-buffer)
-		  (kill-buffer ,temp-buffer))))))))
-
 ;; We need a function that efficiently finds the next change of a
 ;; property (usually `face'), preferably regardless of whether the
 ;; change occurred because of a text property or an extent/overlay.
@@ -361,44 +309,15 @@ output.")
 
 (cond
  (htmlize-running-xemacs
-  ;; XEmacs: good.
   (defun htmlize-next-change (pos prop &optional limit)
     (next-single-property-change pos prop nil (or limit (point-max)))))
  ((fboundp 'next-single-char-property-change)
-  ;; GNU Emacs 21: good.
+  ;; GNU Emacs 21+
   (defun htmlize-next-change (pos prop &optional limit)
     (next-single-char-property-change pos prop nil limit)))
- ((fboundp 'next-char-property-change)
-  ;; GNU Emacs 20: bad, but fixable.
-  (defun htmlize-next-change (pos prop &optional limit)
-    (let ((done nil)
-	  (current-value (get-char-property pos prop))
-	  newpos next-value)
-      ;; Loop over positions returned by next-char-property-change
-      ;; until the value of PROP changes or we've hit EOB.
-      (while (not done)
-	(setq newpos (next-char-property-change pos limit)
-	      next-value (get-char-property newpos prop))
-	(cond ((eq newpos pos)
-	       ;; Possibly at EOB?  Whatever, just don't infloop.
-	       (setq done t))
-	      ((eq next-value current-value)
-	       ;; PROP hasn't changed -- keep looping.
-	       )
-	      (t
-	       (setq done t)))
-	(setq pos newpos))
-      pos)))
  (t
-  ;; GNU Emacs 19.34: hopeless, cannot properly support overlays.
-  (defun htmlize-next-change (pos prop &optional limit)
-    (unless limit
-      (setq limit (point-max)))
-    (let ((res (next-single-property-change pos prop)))
-      (if (or (null res)
-	      (> res limit))
-	  limit
-	res)))))
+  (error "htmlize requires next-single-property-change or \
+next-single-char-property-change")))
 
 ;;; Transformation of buffer text: HTML escapes, untabification, etc.
 
@@ -464,10 +383,9 @@ output.")
 		   ;; Latin 1: no need to call encode-char.
 		   (setf (gethash char htmlize-extended-character-cache)
 			 (format "&#%d;" char)))
-		  ((and (fboundp 'encode-char)
-			;; Must check if encode-char works for CHAR;
-			;; it fails for Arabic and possibly elsewhere.
-			(encode-char char 'ucs))
+		  ((encode-char char 'ucs)
+                   ;; Must check if encode-char works for CHAR;
+                   ;; it fails for Arabic and possibly elsewhere.
 		   (setf (gethash char htmlize-extended-character-cache)
 			 (format "&#%d;" (encode-char char 'ucs))))
 		  (t
@@ -877,6 +795,31 @@ If no rgb.txt file is found, return nil."
 	  collect (if (eq h 'unspecified) nil h))))
     (reduce 'htmlize-merge-size (cons nil size-list))))
 
+(defun htmlize-face-css-name (face)
+  ;; Generate the css-name property for the given face.  Emacs places
+  ;; no restrictions on the names of symbols that represent faces --
+  ;; any characters may be in the name, even control chars.  We try
+  ;; hard to beat the face name into shape, both esthetically and
+  ;; according to CSS1 specs.
+  (let ((name (downcase (symbol-name face))))
+    (when (string-match "\\`font-lock-" name)
+      ;; font-lock-FOO-face -> FOO.
+      (setq name (replace-match "" t t name)))
+    (when (string-match "-face\\'" name)
+      ;; Drop the redundant "-face" suffix.
+      (setq name (replace-match "" t t name)))
+    (while (string-match "[^-a-zA-Z0-9]" name)
+      ;; Drop the non-alphanumerics.
+      (setq name (replace-match "X" t t name)))
+    (when (string-match "\\`[-0-9]" name)
+      ;; CSS identifiers may not start with a digit.
+      (setq name (concat "X" name)))
+    ;; After these transformations, the face could come out empty.
+    (when (equal name "")
+      (setq name "face"))
+    ;; Apply the prefix.
+    (concat htmlize-css-name-prefix name)))
+
 (defun htmlize-face-to-fstruct (face)
   "Convert Emacs face FACE to fstruct."
   (let ((fstruct (make-htmlize-fstruct
@@ -884,87 +827,53 @@ If no rgb.txt file is found, return nil."
 			       (htmlize-face-foreground face))
 		  :background (htmlize-color-to-rgb
 			       (htmlize-face-background face)))))
-    (cond (htmlize-running-xemacs
-	   ;; XEmacs doesn't provide a way to detect whether a face is
-	   ;; bold or italic, so we need to examine the font instance.
-	   ;; #### This probably doesn't work under MS Windows and/or
-	   ;; GTK devices.  I'll need help with those.
-	   (let* ((font-instance (face-font-instance face))
-		  (props (font-instance-properties font-instance)))
-	     (when (equalp (cdr (assq 'WEIGHT_NAME props)) "bold")
-	       (setf (htmlize-fstruct-boldp fstruct) t))
-	     (when (or (equalp (cdr (assq 'SLANT props)) "i")
-		       (equalp (cdr (assq 'SLANT props)) "o"))
-	       (setf (htmlize-fstruct-italicp fstruct) t))
-	     (setf (htmlize-fstruct-strikep fstruct)
-		   (face-strikethru-p face))
-	     (setf (htmlize-fstruct-underlinep fstruct)
-		   (face-underline-p face))))
-	  ((fboundp 'face-attribute)
-	   ;; GNU Emacs 21 and further.
-	   (dolist (attr '(:weight :slant :underline :overline :strike-through))
-	     (let ((value (if (>= emacs-major-version 22)
-			      ;; Use the INHERIT arg in GNU Emacs 22.
-			      (face-attribute face attr nil t)
-			    ;; Otherwise, fake it.
-			    (let ((face face))
-			      (while (and (eq (face-attribute face attr)
-					      'unspecified)
-					  (not (eq (face-attribute face :inherit)
-						   'unspecified)))
-				(setq face (face-attribute face :inherit)))
-			      (face-attribute face attr)))))
-	       (when (and value (not (eq value 'unspecified)))
-		 (htmlize-face-emacs21-attr fstruct attr value))))
-	   (let ((size (htmlize-face-size face)))
-	     (unless (eql size 1.0) 	; ignore non-spec
-	       (setf (htmlize-fstruct-size fstruct) size))))
-	  (t
-	   ;; Older GNU Emacs.  Some of these functions are only
-	   ;; available under Emacs 20+, hence the guards.
-	   (when (fboundp 'face-bold-p)
-	     (setf (htmlize-fstruct-boldp fstruct) (face-bold-p face)))
-	   (when (fboundp 'face-italic-p)
-	     (setf (htmlize-fstruct-italicp fstruct) (face-italic-p face)))
-	   (setf (htmlize-fstruct-underlinep fstruct)
-		 (face-underline-p face))))
-    ;; Generate the css-name property.  Emacs places no restrictions
-    ;; on the names of symbols that represent faces -- any characters
-    ;; may be in the name, even ^@.  We try hard to beat the face name
-    ;; into shape, both esthetically and according to CSS1 specs.
-    (setf (htmlize-fstruct-css-name fstruct)
-	  (let ((name (downcase (symbol-name face))))
-	    (when (string-match "\\`font-lock-" name)
-	      ;; Change font-lock-FOO-face to FOO.
-	      (setq name (replace-match "" t t name)))
-	    (when (string-match "-face\\'" name)
-	      ;; Drop the redundant "-face" suffix.
-	      (setq name (replace-match "" t t name)))
-	    (while (string-match "[^-a-zA-Z0-9]" name)
-	      ;; Drop the non-alphanumerics.
-	      (setq name (replace-match "X" t t name)))
-	    (when (string-match "\\`[-0-9]" name)
-	      ;; CSS identifiers may not start with a digit.
-	      (setq name (concat "X" name)))
-	    ;; After these transformations, the face could come
-	    ;; out empty.
-	    (when (equal name "")
-	      (setq name "face"))
-	    ;; Apply the prefix.
-	    (setq name (concat htmlize-css-name-prefix name))
-	    name))
+    (if htmlize-running-xemacs
+        ;; XEmacs doesn't provide a way to detect whether a face is
+        ;; bold or italic, so we need to examine the font instance.
+        (let* ((font-instance (face-font-instance face))
+               (props (font-instance-properties font-instance)))
+          (when (equalp (cdr (assq 'WEIGHT_NAME props)) "bold")
+            (setf (htmlize-fstruct-boldp fstruct) t))
+          (when (or (equalp (cdr (assq 'SLANT props)) "i")
+                    (equalp (cdr (assq 'SLANT props)) "o"))
+            (setf (htmlize-fstruct-italicp fstruct) t))
+          (setf (htmlize-fstruct-strikep fstruct)
+                (face-strikethru-p face))
+          (setf (htmlize-fstruct-underlinep fstruct)
+                (face-underline-p face)))
+      ;; GNU Emacs
+      (dolist (attr '(:weight :slant :underline :overline :strike-through))
+        (let ((value (if (>= emacs-major-version 22)
+                         ;; Use the INHERIT arg in GNU Emacs 22.
+                         (face-attribute face attr nil t)
+                       ;; Otherwise, fake it.
+                       (let ((face face))
+                         (while (and (eq (face-attribute face attr)
+                                         'unspecified)
+                                     (not (eq (face-attribute face :inherit)
+                                              'unspecified)))
+                           (setq face (face-attribute face :inherit)))
+                         (face-attribute face attr)))))
+          (when (and value (not (eq value 'unspecified)))
+            (htmlize-face-emacs21-attr fstruct attr value))))
+      (let ((size (htmlize-face-size face)))
+        (unless (eql size 1.0) 	; ignore non-spec
+          (setf (htmlize-fstruct-size fstruct) size))))
+    (setf (htmlize-fstruct-css-name fstruct) (htmlize-face-css-name face))
     fstruct))
 
 (defmacro htmlize-copy-attr-if-set (attr-list dest source)
-  ;; Expand the code of the type
-  ;; (and (htmlize-fstruct-ATTR source)
-  ;;      (setf (htmlize-fstruct-ATTR dest) (htmlize-fstruct-ATTR source)))
+  ;; Generate code with the following pattern:
+  ;; (progn
+  ;;   (when (htmlize-fstruct-ATTR source)
+  ;;     (setf (htmlize-fstruct-ATTR dest) (htmlize-fstruct-ATTR source)))
+  ;;   ...)
   ;; for the given list of boolean attributes.
   (cons 'progn
 	(loop for attr in attr-list
 	      for attr-sym = (intern (format "htmlize-fstruct-%s" attr))
-	      collect `(and (,attr-sym ,source)
-			    (setf (,attr-sym ,dest) (,attr-sym ,source))))))
+	      collect `(when (,attr-sym ,source)
+                         (setf (,attr-sym ,dest) (,attr-sym ,source))))))
 
 (defun htmlize-merge-size (merged next)
   ;; Calculate the size of the merge of MERGED and NEXT.
@@ -1259,30 +1168,9 @@ it's called with the same value of KEY.  All other times, the cached
 
 (defun htmlize-default-doctype ()
   nil					; no doc-string
-  ;; According to DTDs published by the W3C, it is illegal to embed
-  ;; <font> in <pre>.  This makes sense in general, but is bad for
-  ;; htmlize's intended usage of <font> to specify the document color.
-
-  ;; To make generated HTML legal, htmlize's `font' mode used to
-  ;; specify the SGML declaration of "HTML Pro" DTD here.  HTML Pro
-  ;; aka Silmaril DTD was a project whose goal was to produce a GPL'ed
-  ;; DTD that would encompass all the incompatible HTML extensions
-  ;; procured by Netscape, MSIE, and other players in the field.
-  ;; Apparently the project got abandoned, the last available version
-  ;; being "Draft 0 Revision 11" from January 1997, as documented at
-  ;; <http://imbolc.ucc.ie/~pflynn/articles/htmlpro.html>.
-
-  ;; Since by now HTML Pro is remembered by none but the most die-hard
-  ;; early-web-days nostalgics and used by not even them, there is no
-  ;; use in specifying it.  So we return the standard HTML 4.0
-  ;; declaration, which makes generated HTML technically illegal.  If
-  ;; you have a problem with that, use the `css' engine designed to
-  ;; create fully conforming HTML.
-
+  ;; Note that the `font' output is technically invalid under this DTD
+  ;; because the DTD doesn't allow embedding <font> in <pre>.
   "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN\">"
-
-  ;; Now-abandoned HTML Pro declaration.
-  ;"<!DOCTYPE HTML PUBLIC \"+//Silmaril//DTD HTML Pro v0r11 19970101//EN\">"
   )
 
 (defun htmlize-default-body-tag (face-map)

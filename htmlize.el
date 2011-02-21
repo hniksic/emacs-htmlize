@@ -495,6 +495,22 @@ next-single-char-property-change")))
       ;; Generate the output from the available chunks.
       (apply #'concat (nreverse chunks)))))
 
+(defun htmlize-extract-text (beg end trailing-ellipsis)
+  ;; Extract buffer text, sans the invisible parts.  Then
+  ;; untabify it and escape the HTML metacharacters.
+  (setq text (htmlize-buffer-substring-no-invisible
+              (point) next-change))
+  (when trailing-ellipsis
+    (setq text (htmlize-trim-ellipsis text)))
+  ;; If TEXT ends up empty, don't change trailing-ellipsis.
+  (when (> (length text) 0)
+    (setq trailing-ellipsis
+          (get-text-property (1- (length text))
+                             'htmlize-ellipsis text)))
+  (setq text (htmlize-untabify text (current-column)))
+  (setq text (htmlize-protect-string text))
+  (values text trailing-ellipsis))
+
 (defun htmlize-despam-address (string)
   "Replace every occurrence of '@' in STRING with &#64;.
 `htmlize-make-hyperlinks' uses this to spam-protect mailto links
@@ -1368,19 +1384,8 @@ it's called with the same value of KEY.  All other times, the cached
 		fstruct-list (delq nil (mapcar (lambda (f)
 						 (gethash f face-map))
 					       face-list)))
-	  ;; Extract buffer text, sans the invisible parts.  Then
-	  ;; untabify it and escape the HTML metacharacters.
-	  (setq text (htmlize-buffer-substring-no-invisible
-		      (point) next-change))
-	  (when trailing-ellipsis
-	    (setq text (htmlize-trim-ellipsis text)))
-	  ;; If TEXT ends up empty, don't change trailing-ellipsis.
-	  (when (> (length text) 0)
-	    (setq trailing-ellipsis
-		  (get-text-property (1- (length text))
-				     'htmlize-ellipsis text)))
-	  (setq text (htmlize-untabify text (current-column)))
-	  (setq text (htmlize-protect-string text))
+          (multiple-value-setq (text trailing-ellipsis)
+            (htmlize-extract-text (point) next-change trailing-ellipsis))
 	  ;; Don't bother writing anything if there's no text (this
 	  ;; happens in invisible regions).
 	  (when (> (length text) 0)

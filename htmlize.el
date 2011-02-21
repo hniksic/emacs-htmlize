@@ -300,11 +300,15 @@ output.")
 (cond
  (htmlize-running-xemacs
   (defun htmlize-next-change (pos prop &optional limit)
-    (next-single-property-change pos prop nil (or limit (point-max)))))
+    (if prop
+        (next-single-property-change pos prop nil (or limit (point-max)))
+      (next-property-change pos nil (or limit (point-max))))))
  ((fboundp 'next-single-char-property-change)
   ;; GNU Emacs 21+
   (defun htmlize-next-change (pos prop &optional limit)
-    (next-single-char-property-change pos prop nil limit)))
+    (if prop
+        (next-single-char-property-change pos prop nil limit)
+      (next-char-property-change pos limit))))
  (t
   (error "htmlize requires next-single-property-change or \
 next-single-char-property-change")))

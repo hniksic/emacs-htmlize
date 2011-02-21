@@ -339,11 +339,10 @@ next-single-char-property-change")))
     table))
 
 ;; A cache of HTML representation of non-ASCII characters.  Depending
-;; on availability of `encode-char' and the setting of
-;; `htmlize-convert-nonascii-to-entities', this maps non-ASCII
-;; characters to either "&#<code>;" or "<char>" (mapconcat's mapper
-;; must always return strings).  It's only filled as characters are
-;; encountered, so that in a buffer with e.g. French text, it will
+;; on the setting of `htmlize-convert-nonascii-to-entities', this maps
+;; non-ASCII characters to either "&#<code>;" or "<char>" (mapconcat's
+;; mapper must always return strings).  It's only filled as characters
+;; are encountered, so that in a buffer with e.g. French text, it will
 ;; only ever contain French accented characters as keys.  It's cleared
 ;; on each entry to htmlize-buffer-1 to allow modifications of
 ;; `htmlize-convert-nonascii-to-entities' to take effect.

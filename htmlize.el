@@ -391,58 +391,57 @@ next-single-char-property-change")))
 (defconst htmlize-ellipsis "...")
 (put-text-property 0 (length htmlize-ellipsis) 'htmlize-ellipsis t htmlize-ellipsis)
 
+(defun htmlize-match-inv-spec (inv)
+  (member* inv buffer-invisibility-spec
+           :key (lambda (i)
+                  (if (symbolp i) i (car i)))))
+
+(defun htmlize-decode-invisibility-spec (invisible)
+  ;; Return t, nil, or `ellipsis', depending on how invisible text should be inserted.
+
+  (if (not (listp buffer-invisibility-spec))
+      ;; If buffer-invisibility-spec is not a list, then all
+      ;; characters with non-nil `invisible' property are visible.
+      (not invisible)
+
+    ;; Otherwise, the value of a non-nil `invisible' property can be:
+    ;; 1. a symbol -- make the text invisible if it matches
+    ;;    buffer-invisibility-spec.
+    ;; 2. a list of symbols -- make the text invisible if
+    ;;    any symbol in the list matches
+    ;;    buffer-invisibility-spec.
+    ;; If the match of buffer-invisibility-spec has a non-nil
+    ;; CDR, replace the invisible text with an ellipsis.
+    (let ((match (if (symbolp invisible)
+                     (htmlize-match-inv-spec invisible)
+                   (some #'htmlize-match-inv-spec invisible))))
+      (cond ((null match) t)
+            ((cdr-safe (car match)) 'ellipsis)
+            (t nil)))))
+
 (defun htmlize-buffer-substring-no-invisible (beg end)
   ;; Like buffer-substring-no-properties, but don't copy invisible
   ;; parts of the region.  Where buffer-substring-no-properties
   ;; mandates an ellipsis to be shown, htmlize-ellipsis is inserted.
   (let ((pos beg)
-	visible-list invisible show next-change)
+	visible-list invisible show last-show next-change)
     ;; Iterate over the changes in the `invisible' property and filter
     ;; out the portions where it's non-nil, i.e. where the text is
     ;; invisible.
     (while (< pos end)
       (setq invisible (get-char-property pos 'invisible)
-	    next-change (htmlize-next-change pos 'invisible end))
-      (if (not (listp buffer-invisibility-spec))
-	  ;; If buffer-invisibility-spec is not a list, then all
-	  ;; characters with non-nil `invisible' property are visible.
-	  (setq show (not invisible))
-	;; Otherwise, the value of a non-nil `invisible' property can be:
-	;; 1. a symbol -- make the text invisible if it matches
-	;;    buffer-invisibility-spec.
-	;; 2. a list of symbols -- make the text invisible if
-	;;    any symbol in the list matches
-	;;    buffer-invisibility-spec.
-	;; If the match of buffer-invisibility-spec has a non-nil
-	;; CDR, replace the invisible text with an ellipsis.
-	(let (match)
-	  (if (symbolp invisible)
-	      (setq match (member* invisible buffer-invisibility-spec
-				   :key (lambda (i)
-					  (if (symbolp i) i (car i)))))
-	    (setq match (block nil
-			  (dolist (elem invisible)
-			    (let ((m (member*
-				      elem buffer-invisibility-spec
-				      :key (lambda (i)
-					     (if (symbolp i) i (car i))))))
-			      (when m (return m))))
-			  nil)))
-	  (setq show (cond ((null match) t)
-			   ((and (cdr-safe (car match))
-				 ;; Conflate successive ellipses.
-				 (not (eq show htmlize-ellipsis)))
-			    htmlize-ellipsis)
-			   (t nil)))))
+	    next-change (htmlize-next-change pos 'invisible end)
+            show (htmlize-decode-invisibility-spec invisible))
       (cond ((eq show t)
 	     (push (buffer-substring-no-properties pos next-change) visible-list))
-	    ((stringp show)
-	     (push show visible-list)))
-      (setq pos next-change))
+            ((and (eq show 'ellipsis)
+                  (not (eq last-show 'ellipsis))
+                  ;; Conflate successive ellipses.
+                  (push htmlize-ellipsis visible-list))))
+      (setq pos next-change last-show show))
     (if (= (length visible-list) 1)
-	;; If VISIBLE-LIST consists of only one element, return it
-	;; without concatenation.  This avoids additional consing in
-	;; regions without any invisible text.
+	;; If VISIBLE-LIST consists of only one element, return it and
+	;; avoid creating a new string.
 	(car visible-list)
       (apply #'concat (nreverse visible-list)))))
 
@@ -502,18 +501,17 @@ next-single-char-property-change")))
 (defun htmlize-extract-text (beg end trailing-ellipsis)
   ;; Extract buffer text, sans the invisible parts.  Then
   ;; untabify it and escape the HTML metacharacters.
-  (setq text (htmlize-buffer-substring-no-invisible
-              (point) next-change))
-  (when trailing-ellipsis
-    (setq text (htmlize-trim-ellipsis text)))
-  ;; If TEXT ends up empty, don't change trailing-ellipsis.
-  (when (> (length text) 0)
-    (setq trailing-ellipsis
-          (get-text-property (1- (length text))
-                             'htmlize-ellipsis text)))
-  (setq text (htmlize-untabify text (current-column)))
-  (setq text (htmlize-protect-string text))
-  (values text trailing-ellipsis))
+  (let ((text (htmlize-buffer-substring-no-invisible beg end)))
+    (when trailing-ellipsis
+      (setq text (htmlize-trim-ellipsis text)))
+    ;; If TEXT ends up empty, don't change trailing-ellipsis.
+    (when (> (length text) 0)
+      (setq trailing-ellipsis
+            (get-text-property (1- (length text))
+                               'htmlize-ellipsis text)))
+    (setq text (htmlize-untabify text (current-column)))
+    (setq text (htmlize-protect-string text))
+    (values text trailing-ellipsis)))
 
 (defun htmlize-despam-address (string)
   "Replace every occurrence of '@' in STRING with &#64;.

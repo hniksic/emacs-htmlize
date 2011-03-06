@@ -295,20 +295,43 @@ output.")
 (defconst htmlize-running-xemacs (string-match "XEmacs" emacs-version))
 
 ;; We need a function that efficiently finds the next change of a
-;; property (usually the `face' property) regardless of whether the
-;; change occurred because of a text property or an extent/overlay.
+;; property regardless of whether the change occurred because of a
+;; text property or an extent/overlay.
 (cond
  (htmlize-running-xemacs
   (defun htmlize-next-change (pos prop &optional limit)
     (if prop
         (next-single-property-change pos prop nil (or limit (point-max)))
-      (next-property-change pos nil (or limit (point-max))))))
+      (next-property-change pos nil (or limit (point-max)))))
+  (defun htmlize-next-face-change (pos &optional limit)
+    (htmlize-next-change pos 'face limit)))
  ((fboundp 'next-single-char-property-change)
   ;; GNU Emacs 21+
   (defun htmlize-next-change (pos prop &optional limit)
     (if prop
         (next-single-char-property-change pos prop nil limit)
-      (next-char-property-change pos limit))))
+      (next-char-property-change pos limit)))
+  (defun htmlize-overlay-faces-at (pos)
+    (delq nil (mapcar (lambda (o) (overlay-get o 'face)) (overlays-at pos))))
+  (defun htmlize-next-face-change (pos &optional limit)
+    ;; It is insufficient to call (htmlize-next-change pos 'face
+    ;; limit) because it skips over entire overlays that specify the
+    ;; `face' property, although the overlay contains smaller text
+    ;; property runs that also specify `face'.  The Emacs display
+    ;; engine merges faces from all sources, and so must we.
+    (or limit
+        (setq limit (point-max)))
+    (let ((next-prop (next-single-property-change pos 'face nil limit))
+          (overlay-faces (htmlize-overlay-faces-at pos))
+          next-pos next-overlay-faces)
+      (loop
+       do (setq next-pos (next-overlay-change pos))
+       until (>= next-pos next-prop)
+       do (setq next-overlay-faces (htmlize-overlay-faces-at next-pos))
+       while (equal overlay-faces next-overlay-faces)
+       do (setq pos next-pos
+                overlay-faces next-overlay-faces))
+      (min next-pos next-prop))))
  (t
   (error "htmlize requires next-single-property-change or \
 next-single-char-property-change")))
@@ -1374,12 +1397,12 @@ it's called with the same value of KEY.  All other times, the cached
 	;; This loop traverses and reads the source buffer, appending
 	;; the resulting HTML to HTMLBUF with `princ'.  This method is
 	;; fast because: 1) it doesn't require examining the text
-	;; properties char by char (htmlize-next-change is used to
-	;; move between runs with the same face), and 2) it doesn't
+	;; properties char by char (htmlize-next-face-change is used
+	;; to move between runs with the same face), and 2) it doesn't
 	;; require buffer switches, which are slow in Emacs.
 	(goto-char (point-min))
 	(while (not (eobp))
-	  (setq next-change (htmlize-next-change (point) 'face))
+	  (setq next-change (htmlize-next-face-change (point)))
 	  ;; Get faces in use between (point) and NEXT-CHANGE, and
 	  ;; convert them to fstructs.
 	  (setq face-list (htmlize-faces-at-point)

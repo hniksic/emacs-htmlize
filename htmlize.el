@@ -314,24 +314,19 @@ output.")
   (defun htmlize-overlay-faces-at (pos)
     (delq nil (mapcar (lambda (o) (overlay-get o 'face)) (overlays-at pos))))
   (defun htmlize-next-face-change (pos &optional limit)
-    ;; It is insufficient to call (htmlize-next-change pos 'face
-    ;; limit) because it skips over entire overlays that specify the
-    ;; `face' property, although the overlay contains smaller text
-    ;; property runs that also specify `face'.  The Emacs display
-    ;; engine merges faces from all sources, and so must we.
+    ;; (htmlize-next-change pos 'face limit) would skip over entire
+    ;; overlays that specify the `face' property, even when they
+    ;; contain smaller text properties that also specify `face'.
+    ;; Emacs display engine merges those faces, and so must we.
     (or limit
         (setq limit (point-max)))
     (let ((next-prop (next-single-property-change pos 'face nil limit))
-          (overlay-faces (htmlize-overlay-faces-at pos))
-          next-pos next-overlay-faces)
-      (loop
-       do (setq next-pos (next-overlay-change pos))
-       until (>= next-pos next-prop)
-       do (setq next-overlay-faces (htmlize-overlay-faces-at next-pos))
-       while (equal overlay-faces next-overlay-faces)
-       do (setq pos next-pos
-                overlay-faces next-overlay-faces))
-      (min next-pos next-prop))))
+          (overlay-faces (htmlize-overlay-faces-at pos)))
+      (while (progn
+               (setq pos (next-overlay-change pos))
+               (and (< pos next-prop)
+                    (equal overlay-faces (htmlize-overlay-faces-at pos)))))
+      (min pos next-prop))))
  (t
   (error "htmlize requires next-single-property-change or \
 next-single-char-property-change")))

@@ -744,11 +744,7 @@ If no rgb.txt file is found, return nil."
 	  (t
 	   ;; We're getting the RGB components from Emacs.
 	   (let ((rgb
-		  ;; Here I cannot conditionalize on (fboundp ...) 
-		  ;; because ps-print under some versions of GNU Emacs
-		  ;; defines its own dummy version of
-		  ;; `color-instance-rgb-components'.
-		  (if htmlize-running-xemacs
+		  (if (fboundp 'color-instance-rgb-components)
 		      (mapcar (lambda (arg)
 				(/ arg 256))
 			      (color-instance-rgb-components

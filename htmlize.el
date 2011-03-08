@@ -89,6 +89,7 @@
 
 (require 'cl)
 (eval-when-compile
+  (defvar unresolved)
   (if (string-match "XEmacs" emacs-version)
       (byte-compiler-options
 	(warnings (- unresolved))))

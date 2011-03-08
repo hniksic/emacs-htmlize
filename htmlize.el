@@ -751,7 +751,7 @@ If no rgb.txt file is found, return nil."
 			       (make-color-instance color)))
 		    (mapcar (lambda (arg)
 			      (/ arg 256))
-			    (x-color-values color)))))
+			    (color-values color)))))
 	     (when rgb
 	       (setq rgb-string (apply #'format "#%02x%02x%02x" rgb))))))
     ;; If RGB-STRING is still nil, it means the color cannot be found,

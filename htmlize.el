@@ -1,4 +1,4 @@
-;; htmlize.el -- Convert buffer text and decorations to HTML.
+;;; htmlize.el --- Convert buffer text and decorations to HTML.
 
 ;; Copyright (C) 1997-2003,2005,2006,2009,2011 Hrvoje Niksic
 

@@ -1387,11 +1387,12 @@ it's called with the same value of KEY.  All other times, the cached
 	    ;; once.
 	    next-change text face-list fstruct-list trailing-ellipsis)
 	;; This loop traverses and reads the source buffer, appending
-	;; the resulting HTML to HTMLBUF with `princ'.  This method is
-	;; fast because: 1) it doesn't require examining the text
+	;; the resulting HTML to HTMLBUF.  This method is fast
+	;; because: 1) it doesn't require examining the text
 	;; properties char by char (htmlize-next-face-change is used
 	;; to move between runs with the same face), and 2) it doesn't
-	;; require buffer switches, which are slow in Emacs.
+	;; require frequent buffer switches, which are slow because
+	;; they rebind all buffer-local vars.
 	(goto-char (point-min))
 	(while (not (eobp))
 	  (setq next-change (htmlize-next-face-change (point)))

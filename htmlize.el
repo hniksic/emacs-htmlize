@@ -1,11 +1,11 @@
 ;; htmlize.el -- HTML-ize font-lock buffers
 
-;; Copyright (C) 1997,1998 Hrvoje Niksic
+;; Copyright (C) 1997,1998,1999,2000 Hrvoje Niksic
 
-;; Author: Hrvoje Niksic <hniksic@srce.hr>
+;; Author: Hrvoje Niksic <hniksic@xemacs.org>
 ;; Keywords: hypermedia, extensions
 
-;; This proram is free software; you can redistribute it and/or modify
+;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
@@ -22,9 +22,9 @@
 
 ;;; Commentary:
 
-;; This package will HTML-ize your buffers, analyzing the text
-;; properties and transforming them to HTML.  Mail to
-;; <hniksic@srce.hr> to discuss features and additions.  All
+;; This package analyses the text properties of the buffer and
+;; converts them, along with the text, to HTML.  Mail to
+;; <hniksic@xemacs.org> to discuss features and additions.  All
 ;; suggestions are more than welcome.
 
 ;; To use, just switch to a buffer you want HTML-ized, and type `M-x
@@ -52,7 +52,11 @@
 
 ;; The latest version should be available at:
 ;;
-;;        <URL:http://jagor.srce.hr/~hniksic/htmlize.el>
+;;        <URL:http://mraz.iskon.hr/~hniksic/htmlize.el>
+;;
+;; You can find the sample htmlize output (run on `htmlize.el') at:
+;;
+;;        <URL:http://mraz.iskon.hr/~hniksic/htmlize.html>
 ;;
 
 ;; Thanks go to:
@@ -67,6 +71,13 @@
 ;;
 ;;   * Peter Breton <pbreton@ne.mediaone.net>, for useful suggestions
 ;;     (multiple file stuff) and dired code.
+;;
+;;   * Thomas Vogels <tov@ece.cmu.edu> and Juanma Barranquero
+;;     <barranquero@laley-actualidad.es> for contributing fixes.
+;;
+;;   * A bunch of other people for sending reports and useful
+;;     comments.
+;;
 
 ;; TODO: Should attempt to merge faces (utilize CSS for this?).
 ;; Should recognize all extents under XEmacs, not just text
@@ -87,7 +98,7 @@
   (defvar font-lock-auto-fontify)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "0.45")
+(defconst htmlize-version "0.50")
 
 ;; Incantations to make custom stuff work without customize, e.g. on
 ;; XEmacs 19.14 or GNU Emacs 19.34.
@@ -166,6 +177,116 @@ This is run by the `htmlize-file'.")
 
 ;;; Protection of HTML strings.
 
+;; This is only a stub.  Implementing this to be correct under all
+;; variants of Mule and Mule-disabled Emacs is extremely hard.  Leave
+;; it commented for now.
+
+;(defvar htmlize-protected-chars
+;  '((?& amp)
+;    (?< lt)
+;    (?> gt)
+;    (?\" quot))
+;  "Characters ordinarily protected by HTML.")
+
+;(defvar htmlize-latin1-entities
+;  '((160 nbsp)
+;    (161 iexcl)
+;    (162 cent)
+;    (163 pound)
+;    (164 curren)
+;    (165 yen)
+;    (166 brvbar)
+;    (167 sect)
+;    (168 uml)
+;    (169 copy)
+;    (170 ordf)
+;    (171 laquo)
+;    (172 not)
+;    (173 shy)
+;    (174 reg)
+;    (175 macr)
+;    (176 deg)
+;    (177 plusmn)
+;    (178 sup2)
+;    (179 sup3)
+;    (180 acute)
+;    (181 micro)
+;    (182 para)
+;    (183 middot)
+;    (184 cedil)
+;    (185 sup1)
+;    (186 ordm)
+;    (187 raquo)
+;    (188 frac14)
+;    (189 frac12)
+;    (190 frac34)
+;    (191 iquest)
+;    (192 Agrave)
+;    (193 Aacute)
+;    (194 Acirc)
+;    (195 Atilde)
+;    (196 Auml)
+;    (197 Aring)
+;    (198 AElig)
+;    (199 Ccedil)
+;    (200 Egrave)
+;    (201 Eacute)
+;    (202 Ecirc)
+;    (203 Euml)
+;    (204 Igrave)
+;    (205 Iacute)
+;    (206 Icirc)
+;    (207 Iuml)
+;    (208 ETH)
+;    (209 Ntilde)
+;    (210 Ograve)
+;    (211 Oacute)
+;    (212 Ocirc)
+;    (213 Otilde)
+;    (214 Ouml)
+;    (215 times)
+;    (216 Oslash)
+;    (217 Ugrave)
+;    (218 Uacute)
+;    (219 Ucirc)
+;    (220 Uuml)
+;    (221 Yacute)
+;    (222 THORN)
+;    (223 szlig)
+;    (224 agrave)
+;    (225 aacute)
+;    (226 acirc)
+;    (227 atilde)
+;    (228 auml)
+;    (229 aring)
+;    (230 aelig)
+;    (231 ccedil)
+;    (232 egrave)
+;    (233 eacute)
+;    (234 ecirc)
+;    (235 euml)
+;    (236 igrave)
+;    (237 iacute)
+;    (238 icirc)
+;    (239 iuml)
+;    (240 eth)
+;    (241 ntilde)
+;    (242 ograve)
+;    (243 oacute)
+;    (244 ocirc)
+;    (245 otilde)
+;    (246 ouml)
+;    (247 divide)
+;    (248 oslash)
+;    (249 ugrave)
+;    (250 uacute)
+;    (251 ucirc)
+;    (252 uuml)
+;    (253 yacute)
+;    (254 thorn)
+;    (255 yuml))
+;  "Mapping between Latin 1 characters and their corresponding HTML entities.")
+
 (defvar htmlize-character-table
   (let ((table (make-vector 256 ?\0)))
     (dotimes (i 256)
@@ -182,6 +303,10 @@ This is run by the `htmlize-file'.")
   (if (not (string-match "[&<>\"]" string))
       string
     (mapconcat (lambda (char)
+		 ;; This will signal an error if CHAR is something
+		 ;; outside the 0-255 range.  Maybe that is just as
+		 ;; well, as I've no idea how to convert a Mule
+		 ;; character to HTML.
 		 (aref htmlize-character-table char))
 	       string "")))
 
@@ -206,10 +331,27 @@ This is run by the `htmlize-file'.")
       (when (file-exists-p (expand-file-name file dir))
 	(return (expand-file-name file dir))))))
 
+(if (fboundp 'file-name-extension)
+    (defalias 'htmlize-file-name-extension 'file-name-extension)
+  (defun htmlize-file-name-extension (filename &optional period)
+    (let ((file (file-name-sans-versions (file-name-nondirectory filename))))
+      (and (string-match "\\.[^.]*\\'" file)
+	   (substring file (+ (match-beginning 0) (if period 0 1)))))))
+
 (eval-and-compile
+  ;; I hate having replacement macros which are not colorized or
+  ;; indented properly, so I'll just define save-current-buffer and
+  ;; with-current-buffer if I can't find them.  htmlize is hardly a
+  ;; package that you use all the time, so that should be fine.
+  (unless (fboundp 'save-current-buffer)
+    (defmacro save-current-buffer (&rest forms)
+      `(let ((__scb_current (current-buffer)))
+	 (unwind-protect
+	     (progn ,@forms)
+	   (set-buffer __scb_current)))))
   (unless (fboundp 'with-current-buffer)
     (defmacro with-current-buffer (buffer &rest forms)
-      `(save-excursion (set-buffer ,buffer) ,@forms)))
+      `(save-current-buffer (set-buffer ,buffer) ,@forms)))
   (unless (fboundp 'with-temp-buffer)
     (defmacro with-temp-buffer (&rest forms)
       (let ((temp-buffer (gensym "tb-")))
@@ -298,13 +440,12 @@ in the system directories."
        (defun htmlize-face-foreground (face)
 	 (or (face-foreground face)
 	     (face-foreground 'default)
-	     ;; Totally bogus, but in my FSFmacs, (face-foreground
-	     ;; 'default) simply returns nil.  Is it a bug?  Is there
-	     ;; a way around it?
+	     (frame-parameter (selected-frame) 'foreground-color)
 	     "black"))
        (defun htmlize-face-background (face)
 	 (or (face-background face)
 	     (face-background 'default)
+	     (frame-parameter (selected-frame) 'background-color)
 	     "white")))
       (t
        (error "WTF?!")))
@@ -497,7 +638,7 @@ in the system directories."
 	 (while (string-match "--" cleaned-up-face-name)
 	   (setq cleaned-up-face-name (replace-match "-" t t
 						     cleaned-up-face-name)))
-	 (while (string-match "*/" cleaned-up-face-name)
+	 (while (string-match "\\*/" cleaned-up-face-name)
 	   (setq cleaned-up-face-name (replace-match "XX" t t
 						     cleaned-up-face-name)))
 	 (unless (eq face 'default)
@@ -611,7 +752,7 @@ in the system directories."
 
 (defun htmlize-make-file-name (file dir)
   (let* ((nondir (file-name-nondirectory file))
-	 (extension (file-name-extension file))
+	 (extension (htmlize-file-name-extension file))
 	 (sans-extension (file-name-sans-extension nondir)))
     (expand-file-name (if (or (equal extension "html")
 			      (equal extension "htm")
@@ -625,7 +766,11 @@ in the system directories."
   "HTML-ize FILE, and save the result.
 If TARGET-DIRECTORY is non-nil, the resulting HTML file will be saved
 to that directory, instead of to the FILE's directory."
-  (interactive "fHTML-ize file: ")
+  (interactive (list (read-file-name
+		      "HTML-ize file: "
+		      nil nil nil (and (buffer-file-name)
+				       (file-name-nondirectory
+					(buffer-file-name))))))
   (let* ((was-visited (get-file-buffer file))
 	 ;; Set these to nil to prevent double fontification; we'll
 	 ;; fontify manually below.

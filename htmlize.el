@@ -1258,18 +1258,21 @@ it's called with the same value of KEY.  All other times, the cached
   (insert htmlize-hyperlink-style
 	  "    -->\n    </style>\n"))
 
-(defun htmlize-css-insert-text (text fstruct-list buffer)
-  ;; Insert TEXT colored with FACES into BUFFER.  In CSS mode, this is
-  ;; easy: just nest the text in one <span class=...> tag for each
-  ;; face in FSTRUCT-LIST.
+(defun htmlize-css-text-markup (fstruct-list buffer)
+  ;; Open the markup needed to insert text colored with FACES into
+  ;; BUFFER.  Return the function that closes the markup.
+
+  ;; In CSS mode, this is easy: just nest the text in one <span
+  ;; class=...> tag for each face in FSTRUCT-LIST.
   (dolist (fstruct fstruct-list)
     (princ "<span class=\"" buffer)
     (princ (htmlize-fstruct-css-name fstruct) buffer)
     (princ "\">" buffer))
-  (princ text buffer)
-  (dolist (fstruct fstruct-list)
-    (ignore fstruct)			; shut up the byte-compiler
-    (princ "</span>" buffer)))
+  (lexical-let ((fstruct-list fstruct-list) (buffer buffer))
+    (lambda ()
+      (dolist (fstruct fstruct-list)
+        (ignore fstruct)                ; shut up the byte-compiler
+        (princ "</span>" buffer)))))
 
 ;; `inline-css' output support.
 
@@ -1278,7 +1281,7 @@ it's called with the same value of KEY.  All other times, the cached
 	  (mapconcat #'identity (htmlize-css-specs (gethash 'default face-map))
 		     " ")))
 
-(defun htmlize-inline-css-insert-text (text fstruct-list buffer)
+(defun htmlize-inline-css-text-markup (fstruct-list buffer)
   (let* ((merged (htmlize-merge-faces fstruct-list))
 	 (style (htmlize-memoize
 		 merged
@@ -1289,9 +1292,10 @@ it's called with the same value of KEY.  All other times, the cached
       (princ "<span style=\"" buffer)
       (princ style buffer)
       (princ "\">" buffer))
-    (princ text buffer)
-    (when style
-      (princ "</span>" buffer))))
+    (lexical-let ((style style) (buffer buffer))
+      (lambda ()
+        (when style
+          (princ "</span>" buffer))))))
 
 ;;; `font' tag based output support.
 
@@ -1301,7 +1305,7 @@ it's called with the same value of KEY.  All other times, the cached
 	    (htmlize-fstruct-foreground fstruct)
 	    (htmlize-fstruct-background fstruct))))
        
-(defun htmlize-font-insert-text (text fstruct-list buffer)
+(defun htmlize-font-insert-text (fstruct-list buffer)
   ;; In `font' mode, we use the traditional HTML means of altering
   ;; presentation: <font> tag for colors, <b> for bold, <u> for
   ;; underline, and <strike> for strike-through.
@@ -1322,9 +1326,12 @@ it's called with the same value of KEY.  All other times, the cached
 			 (and (htmlize-fstruct-boldp merged)      "</b>")
 			 (and (htmlize-fstruct-foreground merged) "</font>"))))))
     (princ (car markup) buffer)
-    (princ text buffer)
-    (princ (cdr markup) buffer)))
+    (lexical-let ((markup markup) (buffer buffer))
+      (lambda ()
+        (princ (cdr markup) buffer)))))
 
+;; XXX kill htmlbuf if an error occurs
+
 (defun htmlize-buffer-1 ()
   ;; Internal function; don't call it from outside this file.  Htmlize
   ;; current buffer, writing the resulting HTML to a new buffer, and
@@ -1377,11 +1384,11 @@ it's called with the same value of KEY.  All other times, the cached
 		"\n    ")
 	(put places 'content-start (point-marker))
 	(insert "<pre>\n"))
-      (let ((insert-text-method
+      (let ((text-markup
 	     ;; Get the inserter method, so we can funcall it inside
 	     ;; the loop.  Not calling `htmlize-method' in the loop
 	     ;; body yields a measurable speed increase.
-	     (htmlize-method-function 'insert-text))
+	     (htmlize-method-function 'text-markup))
 	    ;; Declare variables used in loop body outside the loop
 	    ;; because it's faster to establish `let' bindings only
 	    ;; once.
@@ -1409,7 +1416,9 @@ it's called with the same value of KEY.  All other times, the cached
 	  (when (> (length text) 0)
 	    ;; Insert the text, along with the necessary markup to
 	    ;; represent faces in FSTRUCT-LIST.
-	    (funcall insert-text-method text fstruct-list htmlbuf))
+            (let ((close (funcall text-markup fstruct-list htmlbuf)))
+              (princ text htmlbuf)
+              (funcall close)))
 	  (goto-char next-change)))
 
       ;; Insert the epilog and post-process the buffer.

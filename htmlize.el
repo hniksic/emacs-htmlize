@@ -1385,14 +1385,16 @@ it's called with the same value of KEY.  All other times, the cached
 	(put places 'content-start (point-marker))
 	(insert "<pre>\n"))
       (let ((text-markup
-	     ;; Get the inserter method, so we can funcall it inside
-	     ;; the loop.  Not calling `htmlize-method' in the loop
-	     ;; body yields a measurable speed increase.
-	     (htmlize-method-function 'text-markup))
-	    ;; Declare variables used in loop body outside the loop
-	    ;; because it's faster to establish `let' bindings only
-	    ;; once.
-	    next-change text face-list fstruct-list trailing-ellipsis)
+             ;; Get the inserter method, so we can funcall it inside
+             ;; the loop.  Not calling `htmlize-method' in the loop
+             ;; body yields a measurable speed increase.
+             (htmlize-method-function 'text-markup))
+            ;; Declare variables used in loop body outside the loop
+            ;; because it's faster to establish `let' bindings only
+            ;; once.
+            next-change text face-list trailing-ellipsis
+            fstruct-list last-fstruct-list
+            (close-markup (lambda ())))
 	;; This loop traverses and reads the source buffer, appending
 	;; the resulting HTML to HTMLBUF.  This method is fast
 	;; because: 1) it doesn't require examining the text
@@ -1414,12 +1416,19 @@ it's called with the same value of KEY.  All other times, the cached
 	  ;; Don't bother writing anything if there's no text (this
 	  ;; happens in invisible regions).
 	  (when (> (length text) 0)
+
 	    ;; Insert the text, along with the necessary markup to
 	    ;; represent faces in FSTRUCT-LIST.
-            (let ((close (funcall text-markup fstruct-list htmlbuf)))
-              (princ text htmlbuf)
-              (funcall close)))
-	  (goto-char next-change)))
+
+            (when (not (equalp fstruct-list last-fstruct-list))
+              (funcall close-markup)
+              (setq last-fstruct-list fstruct-list
+                    close-markup (funcall text-markup fstruct-list htmlbuf)))
+            (princ text htmlbuf)
+            )
+	  (goto-char next-change))
+
+        (funcall close-markup))
 
       ;; Insert the epilog and post-process the buffer.
       (with-current-buffer htmlbuf

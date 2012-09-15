@@ -1,35 +1,30 @@
 ;; htmlize.el -- HTML-ize font-lock buffers
 
-;; Copyright (C) 1997,1998 Free Software Foundation
+;; Copyright (C) 1997,1998 Hrvoje Niksic
 
 ;; Author: Hrvoje Niksic <hniksic@srce.hr>
 ;; Keywords: hypermedia, extensions
 
-;; This file is not yet part of any Emacs, but it may be distributed
-;; under the XEmacs distribution terms:
-
-;; XEmacs is free software; you can redistribute it and/or modify
+;; This proram is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
-;; XEmacs is distributed in the hope that it will be useful,
+;; This program is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with XEmacs; see the file COPYING.  If not, write to the
+;; along with this program; see the file COPYING.  If not, write to the
 ;; Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 ;; Boston, MA 02111-1307, USA.
 
-;;; Synched up with: not in FSF
-
 ;;; Commentary:
 
-;; This package will allow you to HTML-ize your font-lock buffers,
-;; analyzing the text properties and transforming them to HTML.  Mail
-;; to <hniksic@srce.hr> to discuss features and additions.  All
+;; This package will HTML-ize your buffers, analyzing the text
+;; properties and transforming them to HTML.  Mail to
+;; <hniksic@srce.hr> to discuss features and additions.  All
 ;; suggestions are more than welcome.
 
 ;; To use, just switch to a buffer you want HTML-ized, and type `M-x
@@ -40,15 +35,20 @@
 ;; guarantees; I haven't yet bothered to run the generated markup
 ;; through a validator.  I tried to make the package elisp-compatible
 ;; with multiple Emacsen, specifically aiming for XEmacs 19.14+ and
-;; GNU Emacs 19.34+.  Please let me know if it doesn't, and I'll try
-;; to fix it.  I relied heavily on the presence of CL extensions,
-;; especially for compatibility; please don't try to remove that
-;; dependency.
+;; GNU Emacs 19.34+.  Please let me know if it doesn't work on any of
+;; those, and I'll try to fix it.  I relied heavily on the presence of
+;; CL extensions, especially for compatibility; please don't try to
+;; remove that dependency.
 
-;; When compiling under GNU Emacs, you'll likely to get oodles of
+;; When compiling under GNU Emacs, you're likely to get oodles of
 ;; warnings; ignore them all.  For any of this to work, you need to
 ;; run Emacs under a window-system -- anything else will almost
 ;; certainly fail.
+
+;; The latest version should be available at:
+;;
+;;        <URL:http://jagor.srce.hr/~hniksic/htmlize.el>
+;;
 
 ;; Thanks go to: Ron Gut <rgut@aware.com> for useful additions that I
 ;; incorporated; to Bob Weiner <weiner@altrasoft.com> for neat ideas
@@ -72,7 +72,7 @@
       (byte-compiler-options
 	(warnings (- unresolved)))))
 
-(defconst htmlize-version "0.33")
+(defconst htmlize-version "0.34")
 
 ;; BLOB to make custom stuff work even without customize
 (eval-and-compile

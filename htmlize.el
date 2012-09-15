@@ -1686,4 +1686,8 @@ corresponding source file."
 
 (provide 'htmlize)
 
+;; Local Variables:
+;; byte-compile-warnings: (not cl-functions lexical unresolved obsolete)
+;; End:
+
 ;;; htmlize.el ends here

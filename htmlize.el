@@ -1330,8 +1330,6 @@ it's called with the same value of KEY.  All other times, the cached
       (lambda ()
         (princ (cdr markup) buffer)))))
 
-;; XXX kill htmlbuf if an error occurs
-
 (defun htmlize-buffer-1 ()
   ;; Internal function; don't call it from outside this file.  Htmlize
   ;; current buffer, writing the resulting HTML to a new buffer, and
@@ -1346,122 +1344,128 @@ it's called with the same value of KEY.  All other times, the cached
     (htmlize-ensure-fontified)
     (clrhash htmlize-extended-character-cache)
     (clrhash htmlize-memoization-table)
-    (let* ((buffer-faces (htmlize-faces-in-buffer))
-	   (face-map (htmlize-make-face-map (adjoin 'default buffer-faces)))
-	   ;; Generate the new buffer.  It's important that it inherits
-	   ;; default-directory from the current buffer.
-	   (htmlbuf (generate-new-buffer (if (buffer-file-name)
-					     (htmlize-make-file-name
-					      (file-name-nondirectory
-					       (buffer-file-name)))
-					   "*html*")))
-	   (places (gensym))
-	   (title (if (buffer-file-name)
-		      (file-name-nondirectory (buffer-file-name))
-		    (buffer-name))))
-      ;; Initialize HTMLBUF and insert the HTML prolog.
-      (with-current-buffer htmlbuf
-	(buffer-disable-undo)
-	(insert (htmlize-method doctype) ?\n
-		(format "<!-- Created by htmlize-%s in %s mode. -->\n"
-			htmlize-version htmlize-output-type)
-		"<html>\n  ")
-	(put places 'head-start (point-marker))
-	(insert "<head>\n"
-		"    <title>" (htmlize-protect-string title) "</title>\n"
-		(if htmlize-html-charset
-		    (format (concat "    <meta http-equiv=\"Content-Type\" "
-				    "content=\"text/html; charset=%s\">\n")
-			    htmlize-html-charset)
-		  "")
-		htmlize-head-tags)
-	(htmlize-method insert-head buffer-faces face-map)
-	(insert "  </head>")
-	(put places 'head-end (point-marker))
-	(insert "\n  ")
-	(put places 'body-start (point-marker))
-	(insert (htmlize-method body-tag face-map)
-		"\n    ")
-	(put places 'content-start (point-marker))
-	(insert "<pre>\n"))
-      (let ((text-markup
-             ;; Get the inserter method, so we can funcall it inside
-             ;; the loop.  Not calling `htmlize-method' in the loop
-             ;; body yields a measurable speed increase.
-             (htmlize-method-function 'text-markup))
-            ;; Declare variables used in loop body outside the loop
-            ;; because it's faster to establish `let' bindings only
-            ;; once.
-            next-change text face-list trailing-ellipsis
-            fstruct-list last-fstruct-list
-            (close-markup (lambda ())))
-	;; This loop traverses and reads the source buffer, appending
-	;; the resulting HTML to HTMLBUF.  This method is fast
-	;; because: 1) it doesn't require examining the text
-	;; properties char by char (htmlize-next-face-change is used
-	;; to move between runs with the same face), and 2) it doesn't
-	;; require frequent buffer switches, which are slow because
-	;; they rebind all buffer-local vars.
-	(goto-char (point-min))
-	(while (not (eobp))
-	  (setq next-change (htmlize-next-face-change (point)))
-	  ;; Get faces in use between (point) and NEXT-CHANGE, and
-	  ;; convert them to fstructs.
-	  (setq face-list (htmlize-faces-at-point)
-		fstruct-list (delq nil (mapcar (lambda (f)
-						 (gethash f face-map))
-					       face-list)))
-          (multiple-value-setq (text trailing-ellipsis)
-            (htmlize-extract-text (point) next-change trailing-ellipsis))
-	  ;; Don't bother writing anything if there's no text (this
-	  ;; happens in invisible regions).
-	  (when (> (length text) 0)
+    ;; It's important that the new buffer inherits default-directory
+    ;; from the current buffer.
+    (let ((htmlbuf (generate-new-buffer (if (buffer-file-name)
+                                            (htmlize-make-file-name
+                                             (file-name-nondirectory
+                                              (buffer-file-name)))
+                                          "*html*")))
+          (completed nil))
+      (unwind-protect
+          (let* ((buffer-faces (htmlize-faces-in-buffer))
+                 (face-map (htmlize-make-face-map (adjoin 'default buffer-faces)))
+                 (places (gensym))
+                 (title (if (buffer-file-name)
+                            (file-name-nondirectory (buffer-file-name))
+                          (buffer-name))))
+            ;; Initialize HTMLBUF and insert the HTML prolog.
+            (with-current-buffer htmlbuf
+              (buffer-disable-undo)
+              (insert (htmlize-method doctype) ?\n
+                      (format "<!-- Created by htmlize-%s in %s mode. -->\n"
+                              htmlize-version htmlize-output-type)
+                      "<html>\n  ")
+              (put places 'head-start (point-marker))
+              (insert "<head>\n"
+                      "    <title>" (htmlize-protect-string title) "</title>\n"
+                      (if htmlize-html-charset
+                          (format (concat "    <meta http-equiv=\"Content-Type\" "
+                                          "content=\"text/html; charset=%s\">\n")
+                                  htmlize-html-charset)
+                        "")
+                      htmlize-head-tags)
+              (htmlize-method insert-head buffer-faces face-map)
+              (insert "  </head>")
+              (put places 'head-end (point-marker))
+              (insert "\n  ")
+              (put places 'body-start (point-marker))
+              (insert (htmlize-method body-tag face-map)
+                      "\n    ")
+              (put places 'content-start (point-marker))
+              (insert "<pre>\n"))
+            (let ((text-markup
+                   ;; Get the inserter method, so we can funcall it inside
+                   ;; the loop.  Not calling `htmlize-method' in the loop
+                   ;; body yields a measurable speed increase.
+                   (htmlize-method-function 'text-markup))
+                  ;; Declare variables used in loop body outside the loop
+                  ;; because it's faster to establish `let' bindings only
+                  ;; once.
+                  next-change text face-list trailing-ellipsis
+                  fstruct-list last-fstruct-list
+                  (close-markup (lambda ())))
+              ;; This loop traverses and reads the source buffer, appending
+              ;; the resulting HTML to HTMLBUF.  This method is fast
+              ;; because: 1) it doesn't require examining the text
+              ;; properties char by char (htmlize-next-face-change is used
+              ;; to move between runs with the same face), and 2) it doesn't
+              ;; require frequent buffer switches, which are slow because
+              ;; they rebind all buffer-local vars.
+              (goto-char (point-min))
+              (while (not (eobp))
+                (setq next-change (htmlize-next-face-change (point)))
+                ;; Get faces in use between (point) and NEXT-CHANGE, and
+                ;; convert them to fstructs.
+                (setq face-list (htmlize-faces-at-point)
+                      fstruct-list (delq nil (mapcar (lambda (f)
+                                                       (gethash f face-map))
+                                                     face-list)))
+                (multiple-value-setq (text trailing-ellipsis)
+                  (htmlize-extract-text (point) next-change trailing-ellipsis))
+                ;; Don't bother writing anything if there's no text (this
+                ;; happens in invisible regions).
+                (when (> (length text) 0)
 
-	    ;; Insert the text, along with the necessary markup to
-	    ;; represent faces in FSTRUCT-LIST.
+                  ;; Insert the text, along with the necessary markup to
+                  ;; represent faces in FSTRUCT-LIST.
 
-            (when (not (equalp fstruct-list last-fstruct-list))
-              (funcall close-markup)
-              (setq last-fstruct-list fstruct-list
-                    close-markup (funcall text-markup fstruct-list htmlbuf)))
-            (princ text htmlbuf)
-            )
-	  (goto-char next-change))
+                  (when (not (equalp fstruct-list last-fstruct-list))
+                    (funcall close-markup)
+                    (setq last-fstruct-list fstruct-list
+                          close-markup (funcall text-markup fstruct-list htmlbuf)))
+                  (princ text htmlbuf)
+                  )
+                (goto-char next-change))
 
-        (funcall close-markup))
+              (funcall close-markup))
 
-      ;; Insert the epilog and post-process the buffer.
-      (with-current-buffer htmlbuf
-	(insert "</pre>")
-	(put places 'content-end (point-marker))
-	(insert "\n  </body>")
-	(put places 'body-end (point-marker))
-	(insert "\n</html>\n")
-	(when htmlize-generate-hyperlinks
-	  (htmlize-make-hyperlinks))
-	(htmlize-defang-local-variables)
-	(when htmlize-replace-form-feeds
-	  ;; Change each "\n^L" to "<hr />".
-	  (goto-char (point-min))
-	  (let ((source
-		 ;; ^L has already been escaped, so search for that.
-		 (htmlize-protect-string "\n\^L"))
-		(replacement
-		 (if (stringp htmlize-replace-form-feeds)
-		     htmlize-replace-form-feeds
-		   "</pre><hr /><pre>")))
-	    (while (search-forward source nil t)
-	      (replace-match replacement t t))))
-	(goto-char (point-min))
-	(when htmlize-html-major-mode
-	  ;; What sucks about this is that the minor modes, most notably
-	  ;; font-lock-mode, won't be initialized.  Oh well.
-	  (funcall htmlize-html-major-mode))
-	(set (make-local-variable 'htmlize-buffer-places)
-             (symbol-plist places))
-	(run-hooks 'htmlize-after-hook)
-	(buffer-enable-undo))
-      htmlbuf)))
+            ;; Insert the epilog and post-process the buffer.
+            (with-current-buffer htmlbuf
+              (insert "</pre>")
+              (put places 'content-end (point-marker))
+              (insert "\n  </body>")
+              (put places 'body-end (point-marker))
+              (insert "\n</html>\n")
+              (when htmlize-generate-hyperlinks
+                (htmlize-make-hyperlinks))
+              (htmlize-defang-local-variables)
+              (when htmlize-replace-form-feeds
+                ;; Change each "\n^L" to "<hr />".
+                (goto-char (point-min))
+                (let ((source
+                       ;; ^L has already been escaped, so search for that.
+                       (htmlize-protect-string "\n\^L"))
+                      (replacement
+                       (if (stringp htmlize-replace-form-feeds)
+                           htmlize-replace-form-feeds
+                         "</pre><hr /><pre>")))
+                  (while (search-forward source nil t)
+                    (replace-match replacement t t))))
+              (goto-char (point-min))
+              (when htmlize-html-major-mode
+                ;; What sucks about this is that the minor modes, most notably
+                ;; font-lock-mode, won't be initialized.  Oh well.
+                (funcall htmlize-html-major-mode))
+              (set (make-local-variable 'htmlize-buffer-places)
+                   (symbol-plist places))
+              (run-hooks 'htmlize-after-hook)
+              (buffer-enable-undo))
+            (setq completed t)
+            htmlbuf)
+
+        (when (not completed)
+          (kill-buffer htmlbuf))))))
 
 ;; Utility functions.
 

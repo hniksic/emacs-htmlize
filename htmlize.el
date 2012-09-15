@@ -1416,18 +1416,16 @@ it's called with the same value of KEY.  All other times, the cached
                 ;; Don't bother writing anything if there's no text (this
                 ;; happens in invisible regions).
                 (when (> (length text) 0)
-
-                  ;; Insert the text, along with the necessary markup to
-                  ;; represent faces in FSTRUCT-LIST.
-
+                  ;; Open the new markup if necessary and insert the text.
                   (when (not (equalp fstruct-list last-fstruct-list))
                     (funcall close-markup)
                     (setq last-fstruct-list fstruct-list
                           close-markup (funcall text-markup fstruct-list htmlbuf)))
-                  (princ text htmlbuf)
-                  )
+                  (princ text htmlbuf))
                 (goto-char next-change))
 
+              ;; We've gone through the buffer; close the markup from
+              ;; the last run, if any.
               (funcall close-markup))
 
             ;; Insert the epilog and post-process the buffer.

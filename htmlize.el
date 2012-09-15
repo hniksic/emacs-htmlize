@@ -1305,7 +1305,7 @@ it's called with the same value of KEY.  All other times, the cached
 	    (htmlize-fstruct-foreground fstruct)
 	    (htmlize-fstruct-background fstruct))))
        
-(defun htmlize-font-insert-text (fstruct-list buffer)
+(defun htmlize-font-text-markup (fstruct-list buffer)
   ;; In `font' mode, we use the traditional HTML means of altering
   ;; presentation: <font> tag for colors, <b> for bold, <u> for
   ;; underline, and <strike> for strike-through.

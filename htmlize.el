@@ -330,7 +330,9 @@ output.")
 next-single-char-property-change")))
 
 (eval-and-compile
-  (if lexical-binding
+  (if (and (>= emacs-major-version 24)
+           (not running-xemacs)
+           lexical-binding)
       (defmacro htmlize-lexlet (&rest stuff)
         `(let ,@stuff))
     ;; cl extensions have a lexical-let macro

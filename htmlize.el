@@ -407,6 +407,27 @@ next-single-char-property-change")))
 			 (char-to-string char)))))
 	       string "")))
 
+(defun htmlize-string-to-html (string)
+  (let ((pos 0) (end (length string))
+        display output next-change)
+    (while (< pos end)
+      (setq display (get-char-property pos 'display string)
+	    next-change (next-single-property-change pos 'display string end))
+      (cond ((stringp display)
+             (push (htmlize-protect-string display) output))
+            ((eq (car-safe display) 'image)
+             (push (htmlize-generate-image (cdr display)) output))
+            (t
+             (push (htmlize-protect-string (substring string pos next-change))
+                   output)))
+      (setq pos next-change))
+    (apply #'concat (nreverse output))))
+
+(defun htmlize-generate-image (imgprops)
+  (cond ((plist-get imgprops :file)
+         (format "<img src=\"%s\" />"
+                 (htmlize-protect-string (plist-get imgprops :file))))))
+
 (defconst htmlize-ellipsis "...")
 (put-text-property 0 (length htmlize-ellipsis) 'htmlize-ellipsis t htmlize-ellipsis)
 
@@ -438,6 +459,19 @@ next-single-char-property-change")))
             ((cdr-safe (car match)) 'ellipsis)
             (t nil)))))
 
+(defun htmlize-get-text-with-display (beg end)
+  (let ((pos beg)
+        (text (buffer-substring-no-properties beg end))
+        display next-change)
+    (while (< pos end)
+      (setq display (get-char-property pos 'display)
+	    next-change (htmlize-next-change pos 'display end))
+      (when display
+        (put-text-property (- pos beg) (- next-change beg)
+                           'display display text))
+      (setq pos next-change))
+    text))
+
 (defun htmlize-buffer-substring-no-invisible (beg end)
   ;; Like buffer-substring-no-properties, but don't copy invisible
   ;; parts of the region.  Where buffer-substring-no-properties
@@ -452,7 +486,8 @@ next-single-char-property-change")))
 	    next-change (htmlize-next-change pos 'invisible end)
             show (htmlize-decode-invisibility-spec invisible))
       (cond ((eq show t)
-	     (push (buffer-substring-no-properties pos next-change) visible-list))
+	     (push (htmlize-get-text-with-display pos next-change)
+                   visible-list))
             ((and (eq show 'ellipsis)
                   (not (eq last-show 'ellipsis))
                   ;; Conflate successive ellipses.
@@ -529,7 +564,7 @@ next-single-char-property-change")))
             (get-text-property (1- (length text))
                                'htmlize-ellipsis text)))
     (setq text (htmlize-untabify text (current-column)))
-    (setq text (htmlize-protect-string text))
+    (setq text (htmlize-string-to-html text))
     (values text trailing-ellipsis)))
 
 (defun htmlize-despam-address (string)

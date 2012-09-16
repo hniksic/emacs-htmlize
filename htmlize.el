@@ -437,7 +437,8 @@ next-single-char-property-change")))
 (defun htmlize-generate-image (imgprops)
   (cond ((plist-get imgprops :file)
          (format "<img src=\"%s\" />"
-                 (htmlize-protect-string (plist-get imgprops :file))))))
+                 (htmlize-protect-string (file-relative-name
+                                          (plist-get imgprops :file)))))))
 
 (defconst htmlize-ellipsis "...")
 (put-text-property 0 (length htmlize-ellipsis) 'htmlize-ellipsis t htmlize-ellipsis)
@@ -545,8 +546,13 @@ next-single-char-property-change")))
 	     (incf column (- match-pos last-match))
 	     ;; Calculate tab size based on tab-width and COLUMN.
 	     (setq tab-size (- tab-width (% column tab-width)))
-	     ;; Expand the tab.
-	     (push (aref htmlize-tab-spaces tab-size) chunks)
+	     ;; Expand the tab, carefully recreating the `display'
+	     ;; property if one was on the TAB.
+             (let ((display (get-text-property match-pos 'display text))
+                   (expanded-tab (aref htmlize-tab-spaces tab-size)))
+               (when display
+                 (put-text-property 0 tab-size 'display display expanded-tab))
+               (push expanded-tab chunks))
 	     (incf column tab-size)
 	     (setq chunk-start (1+ match-pos)))
 	    (t

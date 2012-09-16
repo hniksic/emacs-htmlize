@@ -327,7 +327,12 @@ output.")
                (setq pos (next-overlay-change pos))
                (and (< pos next-prop)
                     (equal overlay-faces (htmlize-overlay-faces-at pos)))))
-      (min pos next-prop))))
+      (setq pos (min pos next-prop))
+      ;; Additionally, we include the entire region that specifies the
+      ;; `display' property with a value that we're going to use.
+      (when (htmlize-usable-display-prop (get-char-property pos 'display))
+        (setq pos (next-single-char-property-change pos 'display nil limit)))
+      pos)))
  (t
   (error "htmlize requires next-single-property-change or \
 next-single-char-property-change")))
@@ -407,19 +412,25 @@ next-single-char-property-change")))
 			 (char-to-string char)))))
 	       string "")))
 
+(defun htmlize-usable-display-prop (display)
+  (or (stringp display)
+      (eq (car-safe display) 'image)))
+
+(defun htmlize-decode-display-prop (display)
+  (if (stringp display)
+      (htmlize-protect-string display)
+    (htmlize-generate-image (cdr display))))
+
 (defun htmlize-string-to-html (string)
   (let ((pos 0) (end (length string))
         display output next-change)
     (while (< pos end)
       (setq display (get-char-property pos 'display string)
 	    next-change (next-single-property-change pos 'display string end))
-      (cond ((stringp display)
-             (push (htmlize-protect-string display) output))
-            ((eq (car-safe display) 'image)
-             (push (htmlize-generate-image (cdr display)) output))
-            (t
-             (push (htmlize-protect-string (substring string pos next-change))
-                   output)))
+      (if (htmlize-usable-display-prop display)
+          (push (htmlize-decode-display-prop display) output)
+        (push (htmlize-protect-string (substring string pos next-change))
+              output))
       (setq pos next-change))
     (apply #'concat (nreverse output))))
 

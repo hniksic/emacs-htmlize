@@ -649,13 +649,6 @@ without modifying their meaning."
 
 ;;; Color handling.
 
-(if (fboundp 'locate-file)
-    (defalias 'htmlize-locate-file 'locate-file)
-  (defun htmlize-locate-file (file path)
-    (dolist (dir path nil)
-      (when (file-exists-p (expand-file-name file dir))
-	(return (expand-file-name file dir))))))
-
 (defvar htmlize-x-library-search-path
   '("/usr/X11R6/lib/X11/"
     "/usr/X11R5/lib/X11/"
@@ -687,7 +680,7 @@ If RGB-FILE is nil, the function will try hard to find a suitable file
 in the system directories.
 
 If no rgb.txt file is found, return nil."
-  (let ((rgb-file (or rgb-file (htmlize-locate-file
+  (let ((rgb-file (or rgb-file (locate-file
 				"rgb.txt"
 				htmlize-x-library-search-path)))
 	(hash nil))

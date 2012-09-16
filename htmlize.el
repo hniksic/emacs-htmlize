@@ -438,7 +438,11 @@ next-single-char-property-change")))
   (cond ((plist-get imgprops :file)
          (format "<img src=\"%s\" />"
                  (htmlize-protect-string (file-relative-name
-                                          (plist-get imgprops :file)))))))
+                                          (plist-get imgprops :file)))))
+        ((plist-get imgprops :data)
+         (format "<img src=\"data:image/%s;base64,%s\" />"
+                 (or (plist-get imgprops :type) "")
+                 (base64-encode-string (plist-get imgprops :data))))))
 
 (defconst htmlize-ellipsis "...")
 (put-text-property 0 (length htmlize-ellipsis) 'htmlize-ellipsis t htmlize-ellipsis)

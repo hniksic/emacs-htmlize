@@ -336,6 +336,16 @@ output.")
  (t
   (error "htmlize requires next-single-property-change or \
 next-single-char-property-change")))
+
+(eval-and-compile
+  (if lexical-binding
+      (defmacro htmlize-lexlet (&rest stuff)
+        `(let ,@stuff))
+    ;; cl extensions have a lexical-let macro
+    (defmacro htmlize-lexlet (&rest stuff)
+      `(lexical-let ,@stuff)))
+  (put 'htmlize-lexlet 'lisp-indent-function 1))
+
 
 ;;; Transformation of buffer text: HTML escapes, untabification, etc.
 
@@ -1249,6 +1259,7 @@ it's called with the same value of KEY.  All other times, the cached
 
 (defun htmlize-default-body-tag (face-map)
   nil					; no doc-string
+  face-map ; shut up the byte-compiler
   "<body>")
 
 ;;; CSS based output support.
@@ -1324,7 +1335,7 @@ it's called with the same value of KEY.  All other times, the cached
     (princ "<span class=\"" buffer)
     (princ (htmlize-fstruct-css-name fstruct) buffer)
     (princ "\">" buffer))
-  (lexical-let ((fstruct-list fstruct-list) (buffer buffer))
+  (htmlize-lexlet ((fstruct-list fstruct-list) (buffer buffer))
     (lambda ()
       (dolist (fstruct fstruct-list)
         (ignore fstruct)                ; shut up the byte-compiler
@@ -1348,7 +1359,7 @@ it's called with the same value of KEY.  All other times, the cached
       (princ "<span style=\"" buffer)
       (princ style buffer)
       (princ "\">" buffer))
-    (lexical-let ((style style) (buffer buffer))
+    (htmlize-lexlet ((style style) (buffer buffer))
       (lambda ()
         (when style
           (princ "</span>" buffer))))))
@@ -1382,7 +1393,7 @@ it's called with the same value of KEY.  All other times, the cached
 			 (and (htmlize-fstruct-boldp merged)      "</b>")
 			 (and (htmlize-fstruct-foreground merged) "</font>"))))))
     (princ (car markup) buffer)
-    (lexical-let ((markup markup) (buffer buffer))
+    (htmlize-lexlet ((markup markup) (buffer buffer))
       (lambda ()
         (princ (cdr markup) buffer)))))
 

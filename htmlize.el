@@ -422,6 +422,8 @@ next-single-char-property-change")))
     (htmlize-generate-image (cdr display))))
 
 (defun htmlize-string-to-html (string)
+  ;; Convert the string to HTML, including images attached as
+  ;; `display' property.
   (let ((pos 0) (end (length string))
         display output next-change)
     (while (< pos end)
@@ -476,6 +478,11 @@ next-single-char-property-change")))
             (t nil)))))
 
 (defun htmlize-get-text-with-display (beg end)
+  ;; Like buffer-substring-no-properties, except it copies the
+  ;; `display' property from the buffer, if found.  We cannot rely on
+  ;; Emacs to copy the property because it can come from either text
+  ;; properties or overlays, and the latter can't be attached to
+  ;; strings.
   (let ((pos beg)
         (text (buffer-substring-no-properties beg end))
         display next-change)

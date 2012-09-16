@@ -1198,7 +1198,7 @@ property and by buffer overlays that specify `face'."
 ;; use CSS, and others the <font> element.  We take an OO approach and
 ;; define "methods" that indirect to the functions that depend on
 ;; `htmlize-output-type'.  The currently used methods are `doctype',
-;; `insert-head', `body-tag', and `insert-text'.  Not all output types
+;; `insert-head', `body-tag', and `text-markup'.  Not all output types
 ;; define all methods.
 ;;
 ;; Methods are called either with (htmlize-method METHOD ARGS...) 

@@ -185,15 +185,15 @@ submitted HTML documents to declare a charset.  So if you care about
 validation, you can use this to prevent the validator from bitching.
 
 Needless to say, if you set this, you should actually make sure that
-the buffer is in the encoding you're claiming it is in.  (Under Mule
-that is done by ensuring the correct \"file coding system\" for the
-buffer.)  If you don't understand what that means, this option is
-probably not for you."
+the buffer is in the encoding you're claiming it is in.  (This is
+normally achieved by using the correct file coding system for the
+buffer.)  If you don't understand what that means, you should probably
+leave this option in its default setting."
   :type '(choice (const :tag "Unset" nil)
 		 string)
   :group 'htmlize)
 
-(defcustom htmlize-convert-nonascii-to-entities (featurep 'mule)
+(defcustom htmlize-convert-nonascii-to-entities t
   "*Whether non-ASCII characters should be converted to HTML entities.
 
 When this is non-nil, characters with codes in the 128-255 range will be
@@ -214,14 +214,6 @@ which has nothing to do with the charset the page is in.  For example,
 \"&#169;\" *always* refers to the copyright symbol, regardless of charset
 specified by the META tag or the charset sent by the HTTP server.  In
 other words, \"&#169;\" is exactly equivalent to \"&copy;\".
-
-By default, entity conversion is turned on for Mule-enabled Emacsen and
-turned off otherwise.  This is because Mule knows the charset of
-non-ASCII characters in the buffer.  A non-Mule Emacs cannot tell
-whether a character with code 0xA9 represents Latin 1 copyright symbol,
-Latin 2 \"S with caron\", or something else altogether.  Setting this to
-t without Mule means asserting that 128-255 characters always mean Latin
-1.
 
 For most people htmlize will work fine with this option left at the
 default setting; don't change it unless you know what you're doing."

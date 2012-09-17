@@ -331,16 +331,13 @@ output.")
   (error "htmlize requires next-single-property-change or \
 next-single-char-property-change")))
 
-(eval-and-compile
-  (if (and (>= emacs-major-version 24)
-           (not running-xemacs)
+(defmacro htmlize-lexlet (&rest letforms)
+  (if (and (boundp 'lexical-binding)
            lexical-binding)
-      (defmacro htmlize-lexlet (&rest stuff)
-        `(let ,@stuff))
-    ;; cl extensions have a lexical-let macro
-    (defmacro htmlize-lexlet (&rest stuff)
-      `(lexical-let ,@stuff)))
-  (put 'htmlize-lexlet 'lisp-indent-function 1))
+      `(let ,@letforms)
+    ;; cl extensions have a macro implementing lexical let
+    `(lexical-let ,@letforms)))
+(put 'htmlize-lexlet 'lisp-indent-function 1)
 
 
 ;;; Transformation of buffer text: HTML escapes, untabification, etc.

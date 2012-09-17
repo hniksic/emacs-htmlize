@@ -45,23 +45,25 @@
 ;; produced HTML is valid under the 4.01 strict DTD, as confirmed by
 ;; the W3C validator.  `inline-css' is like `css', except the CSS is
 ;; put directly in the STYLE attribute of the SPAN element, making it
-;; possible to paste the generated HTML to other documents.  In `font'
-;; mode, htmlize uses <font color="...">...</font> to colorize HTML,
-;; which is not standard-compliant, but works better in older
-;; browsers.  `css' mode is the default.
+;; possible to paste the generated HTML into existing HTML documents.
+;; In `font' mode, htmlize uses <font color="...">...</font> to
+;; colorize HTML, which is not standard-compliant, but works better in
+;; older browsers.  `css' mode is the default.
 
 ;; You can also use htmlize from your Emacs Lisp code.  When called
 ;; non-interactively, `htmlize-buffer' and `htmlize-region' will
 ;; return the resulting HTML buffer, but will not change current
-;; buffer or move the point.
+;; buffer or move the point.  htmlize will do its best to work on
+;; non-windowing Emacs sessions but the result will be limited to
+;; colors supported by the terminal.
 
-;; htmlize aims for compatibility with Emacsen 21 and later.  Please
-;; let me know if it doesn't work on the version of XEmacs or GNU
-;; Emacs that you are using.  The package relies on the presence of CL
-;; extensions, especially for cross-emacs compatibility; please don't
-;; try to remove that dependency.  Yes, I know I require `cl' at
-;; runtime, and I prefer it that way.  When byte-compiling under GNU
-;; Emacs, you're likely to get a few warnings; just ignore them.
+;; htmlize aims for compatibility with Emacsen version 21 and later.
+;; Please let me know if it doesn't work on the version of XEmacs or
+;; GNU Emacs that you are using.  The package relies on the presence
+;; of CL extensions, especially for cross-emacs compatibility; please
+;; don't try to remove that dependency.  I see no practical problems
+;; with using the full power of the CL extensions, except that one
+;; might learn to like them too much.
 
 ;; The latest version is available as a git repository at:
 ;;

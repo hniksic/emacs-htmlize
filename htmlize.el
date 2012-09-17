@@ -1018,32 +1018,39 @@ If no rgb.txt file is found, return nil."
     (setf (htmlize-fstruct-css-name fstruct) "ATTRLIST")
     fstruct))
 
-(defun htmlize-face-list-p (face-prop)
-  "Return non-nil if FACE-PROP is a list of faces, nil otherwise."
-  ;; If not for attrlists, this would return (listp face-prop).  This
-  ;; way we have to be more careful because attrlist is also a list!
-  (cond
-   ((eq face-prop nil)
-    ;; FACE-PROP being nil means empty list (no face), so return t.
-    t)
-   ((symbolp face-prop)
-    ;; A symbol other than nil means that it's only one face, so return
-    ;; nil.
-    nil)
-   ((not (consp face-prop))
-    ;; Huh?  Not a symbol or cons -- treat it as a single element.
-    nil)
-   (t
-    ;; We know that FACE-PROP is a cons: check whether it looks like an
-    ;; ATTRLIST.
-    (let* ((car (car face-prop))
-	   (attrlist-p (and (symbolp car)
-			    (or (eq car 'foreground-color)
-				(eq car 'background-color)
-				(eq (aref (symbol-name car) 0) ?:)))))
-      ;; If FACE-PROP is not an ATTRLIST, it means it's a list of
-      ;; faces.
-      (not attrlist-p)))))
+(defun htmlize-decode-face-prop (prop)
+  "Turn face property PROP into a list of face-like objects."
+  ;; PROP can be a symbol naming a face, a string naming such a
+  ;; symbol, a cons (foreground-color . COLOR) or (background-color
+  ;; COLOR), a property list (:attr1 val1 :attr2 val2 ...), or a list
+  ;; of any of those.
+  ;;
+  ;; (htmlize-decode-face-prop 'face) -> (face)
+  ;; (htmlize-decode-face-prop '(face1 face2)) -> (face1 face2)
+  ;; (htmlize-decode-face-prop '(:attr "val")) -> ((:attr "val"))
+  ;; (htmlize-decode-face-prop '((:attr "val") face (foreground-color "red")))
+  ;;   -> ((:attr "val") face (foreground-color "red"))
+  ;;
+  ;; Unrecognized atoms or non-face symbols/strings are silently
+  ;; stripped away.
+  (cond ((null prop)
+         nil)
+        ((symbolp prop)
+         (and (facep prop)
+              (list prop)))
+        ((stringp prop)
+         (and (facep (intern-soft prop))
+              (list prop)))
+        ((atom prop)
+         nil)
+        ((and (symbolp (car prop))
+              (eq ?: (aref (symbol-name (car prop)) 0)))
+         (list prop))
+        ((or (eq (car prop) 'foreground-color)
+             (eq (car prop) 'background-color))
+         (list prop))
+        (t
+         (apply #'nconc (mapcar #'htmlize-decode-face-prop prop)))))
 
 (defun htmlize-make-face-map (faces)
   ;; Return a hash table mapping Emacs faces to htmlize's fstructs.
@@ -1106,22 +1113,14 @@ property and by buffer overlays that specify `face'."
 	(while (< pos (point-max))
 	  (setq face-prop (get-text-property pos 'face)
 		next (or (next-single-property-change pos 'face) (point-max)))
-	  ;; FACE-PROP can be a face/attrlist or a list thereof.
-	  (setq faces (if (htmlize-face-list-p face-prop)
-			  (nunion (mapcar #'htmlize-unstringify-face face-prop)
-				  faces :test 'equal)
-			(adjoin (htmlize-unstringify-face face-prop)
-				faces :test 'equal)))
+          (setq faces (nunion (htmlize-decode-face-prop face-prop)
+                              faces :test 'equal))
 	  (setq pos next)))
       ;; Faces used by overlays.
       (dolist (overlay (overlays-in (point-min) (point-max)))
 	(let ((face-prop (overlay-get overlay 'face)))
-	  ;; FACE-PROP can be a face/attrlist or a list thereof.
-	  (setq faces (if (htmlize-face-list-p face-prop)
-			  (nunion (mapcar #'htmlize-unstringify-face face-prop)
-				  faces :test 'equal)
-			(adjoin (htmlize-unstringify-face face-prop)
-				faces :test 'equal))))))
+          (setq faces (nunion (htmlize-decode-face-prop face-prop)
+                              faces :test 'equal)))))
     faces))
 
 ;; htmlize-faces-at-point returns the faces in use at point.  The
@@ -1155,10 +1154,7 @@ property and by buffer overlays that specify `face'."
 	 (let (all-faces)
 	   ;; Faces from text properties.
 	   (let ((face-prop (get-text-property (point) 'face)))
-	     (setq all-faces (if (htmlize-face-list-p face-prop)
-				 (nreverse (mapcar #'htmlize-unstringify-face
-						   face-prop))
-			       (list (htmlize-unstringify-face face-prop)))))
+	     (setq all-faces (htmlize-decode-face-prop face-prop)))
 	   ;; Faces from overlays.
 	   (let ((overlays
 		  ;; Collect overlays at point that specify `face'.
@@ -1188,13 +1184,8 @@ property and by buffer overlays that specify `face'."
 			     :key (lambda (o)
 				    (or (overlay-get o 'priority) 0))))
 	     (dolist (overlay overlays)
-	       (setq face-prop (overlay-get overlay 'face))
-	       (setq list (if (htmlize-face-list-p face-prop)
-			      (nconc (nreverse (mapcar
-						#'htmlize-unstringify-face
-						face-prop))
-				     list)
-			    (cons (htmlize-unstringify-face face-prop) list))))
+	       (setq face-prop (overlay-get overlay 'face)
+                     list (nconc (htmlize-decode-face-prop face-prop) list)))
 	     ;; Under "Merging Faces" the manual explicitly states
 	     ;; that faces specified by overlays take precedence over
 	     ;; faces specified by text properties.

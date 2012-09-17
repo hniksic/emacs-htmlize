@@ -488,6 +488,35 @@ next-single-char-property-change")))
             ((cdr-safe (car match)) 'ellipsis)
             (t nil)))))
 
+(defun htmlize-add-before-after-strings (beg end text)
+  ;; Find overlays specifying before-string and after-string in [beg,
+  ;; pos).  If any are found, splice them into TEXT and return the new
+  ;; text.
+  (let (additions)
+    (dolist (overlay (overlays-in beg end))
+      (let ((before (overlay-get overlay 'before-string))
+            (after (overlay-get overlay 'after-string)))
+        (when after
+          (push (cons (- (overlay-end overlay) beg)
+                      after)
+                additions))
+        (when before
+          (push (cons (- (overlay-start overlay) beg)
+                      before)
+                additions))))
+    (if additions
+        (let ((textlist nil)
+              (strpos 0))
+          (dolist (add (sort* additions #'< :key #'car))
+            (let ((addpos (car add))
+                  (addtext (cdr add)))
+              (push (substring text strpos addpos) textlist)
+              (push addtext textlist)
+              (setq strpos addpos)))
+          (push (substring text strpos) textlist)
+          (apply #'concat (nreverse textlist)))
+      text)))
+
 (defun htmlize-get-text-with-display (beg end)
   ;; Like buffer-substring-no-properties, except it copies the
   ;; `display' property from the buffer, if found.  We cannot rely on
@@ -504,6 +533,8 @@ next-single-char-property-change")))
         (put-text-property (- pos beg) (- next-change beg)
                            'display display text))
       (setq pos next-change))
+    (unless running-xemacs
+      (setq text (htmlize-add-before-after-strings beg end text)))
     text))
 
 (defun htmlize-buffer-substring-no-invisible (beg end)

@@ -451,9 +451,12 @@ next-single-char-property-change")))
 
 (defun htmlize-generate-image (imgprops)
   (cond ((plist-get imgprops :file)
-         (format "<img src=\"%s\" />"
-                 (htmlize-protect-string (file-relative-name
-                                          (plist-get imgprops :file)))))
+         ;; Try to find the image in image-load-path
+         (let* ((found-props (cdr (find-image (list imgprops))))
+                (file (or (plist-get found-props :file)
+                          (plist-get imgprops :file))))
+           (format "<img src=\"%s\" />"
+                   (htmlize-protect-string (file-relative-name file)))))
         ((plist-get imgprops :data)
          (format "<img src=\"data:image/%s;base64,%s\" />"
                  (or (plist-get imgprops :type) "")

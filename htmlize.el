@@ -425,20 +425,27 @@ next-single-char-property-change")))
       (htmlize-protect-string display)
     (htmlize-generate-image (cdr display))))
 
+(defsubst htmlize-concat (list)
+  (if (and (consp list) (null (cdr list)))
+      ;; Don't create a new string in the common case where the list only
+      ;; consists of one element.
+      (car list)
+    (apply #'concat list)))
+
 (defun htmlize-string-to-html (string)
   ;; Convert the string to HTML, including images attached as
   ;; `display' property.
   (let ((pos 0) (end (length string))
-        display output next-change)
+        display outlist next-change)
     (while (< pos end)
       (setq display (get-char-property pos 'display string)
 	    next-change (next-single-property-change pos 'display string end))
       (if (htmlize-usable-display-prop display)
-          (push (htmlize-decode-display-prop display) output)
+          (push (htmlize-decode-display-prop display) outlist)
         (push (htmlize-protect-string (substring string pos next-change))
-              output))
+              outlist))
       (setq pos next-change))
-    (apply #'concat (nreverse output))))
+    (htmlize-concat (nreverse outlist))))
 
 (defun htmlize-generate-image (imgprops)
   (cond ((plist-get imgprops :file)
@@ -520,11 +527,7 @@ next-single-char-property-change")))
                   ;; Conflate successive ellipses.
                   (push htmlize-ellipsis visible-list))))
       (setq pos next-change last-show show))
-    (if (= (length visible-list) 1)
-	;; If VISIBLE-LIST consists of only one element, return it and
-	;; avoid creating a new string.
-	(car visible-list)
-      (apply #'concat (nreverse visible-list)))))
+    (htmlize-concat (nreverse visible-list))))
 
 (defun htmlize-trim-ellipsis (text)
   ;; Remove htmlize-ellipses ("...") from the beginning of TEXT if it
@@ -582,7 +585,7 @@ next-single-char-property-change")))
 	;; Push the remaining chunk.
 	(push (substring text chunk-start) chunks))
       ;; Generate the output from the available chunks.
-      (apply #'concat (nreverse chunks)))))
+      (htmlize-concat (nreverse chunks)))))
 
 (defun htmlize-extract-text (beg end trailing-ellipsis)
   ;; Extract buffer text, sans the invisible parts.  Then

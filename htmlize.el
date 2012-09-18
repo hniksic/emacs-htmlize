@@ -518,7 +518,7 @@ next-single-char-property-change")))
     (if additions
         (let ((textlist nil)
               (strpos 0))
-          (dolist (add (sort* additions #'< :key #'car))
+          (dolist (add (stable-sort additions #'< :key #'car))
             (let ((addpos (car add))
                   (addtext (cdr add)))
               (push (substring text strpos addpos) textlist)

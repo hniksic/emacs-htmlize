@@ -131,6 +131,11 @@ sheet to carry around)."
   :type '(choice (const css) (const inline-css) (const font))
   :group 'htmlize)
 
+(defcustom htmlize-use-images t
+  "*Whether htmlize generates `img' for images attached to buffer contents."
+  :type 'boolean
+  :group 'htmlize)
+
 (defcustom htmlize-generate-hyperlinks t
   "*Non-nil means generate the hyperlinks for URLs and mail addresses.
 This is on by default; set it to nil if you don't want htmlize to
@@ -417,10 +422,12 @@ next-single-char-property-change")))
 
 (defun htmlize-usable-display-prop (display)
   (or (stringp display)
-      (eq (car-safe display) 'image)))
+      (and htmlize-use-images
+           (eq (car-safe display) 'image))))
 
-(defun htmlize-decode-display-prop (display)
+(defun htmlize-display-prop-to-html (display)
   (if (stringp display)
+      ;; Emacs ignores recursive display properties.
       (htmlize-protect-string display)
     (htmlize-generate-image (cdr display))))
 
@@ -440,7 +447,9 @@ next-single-char-property-change")))
       (setq display (get-char-property pos 'display string)
 	    next-change (next-single-property-change pos 'display string end))
       (if (htmlize-usable-display-prop display)
-          (push (htmlize-decode-display-prop display) outlist)
+          (push (htmlize-display-prop-to-html display) outlist)
+        ;; If we don't interpret the display prop, ignore it and show
+        ;; the string.
         (push (htmlize-protect-string (substring string pos next-change))
               outlist))
       (setq pos next-change))

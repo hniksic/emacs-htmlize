@@ -136,6 +136,25 @@ sheet to carry around)."
   :type 'boolean
   :group 'htmlize)
 
+(defcustom htmlize-force-inline-images nil
+  "*Non-nil means generate all images inline using data URLs.
+Normally htmlize converts image descriptors with :file properties to
+relative URIs, and those with :data properties to data URIs.  With this
+flag set, the images specified as a file name are loaded into memory and
+embedded in the HTML as data URIs."
+  :type 'boolean
+  :group 'htmlize)
+
+(defcustom htmlize-transform-image 'htmlize-default-transform-image
+  "*Function called with the property list of an image descriptor.
+
+It should return the property list to use instead of the current property
+list, nil if the `display' property is to be ignored and the original
+buffer text used, or a string to use instead of the original buffer text
+and the image."
+  :type 'boolean
+  :group 'htmlize)
+
 (defcustom htmlize-generate-hyperlinks t
   "*Non-nil means generate the hyperlinks for URLs and mail addresses.
 This is on by default; set it to nil if you don't want htmlize to
@@ -328,8 +347,8 @@ output.")
                     (equal overlay-faces (htmlize-overlay-faces-at pos)))))
       (setq pos (min pos next-prop))
       ;; Additionally, we include the entire region that specifies the
-      ;; `display' property with a value that we're going to use.
-      (when (htmlize-usable-display-prop (get-char-property pos 'display))
+      ;; `display' property.
+      (when (get-char-property pos 'display)
         (setq pos (next-single-char-property-change pos 'display nil limit)))
       pos)))
  (t
@@ -420,17 +439,6 @@ next-single-char-property-change")))
 			 (char-to-string char)))))
 	       string "")))
 
-(defun htmlize-usable-display-prop (display)
-  (or (stringp display)
-      (and htmlize-use-images
-           (eq (car-safe display) 'image))))
-
-(defun htmlize-display-prop-to-html (display)
-  (if (stringp display)
-      ;; Emacs ignores recursive display properties.
-      (htmlize-protect-string display)
-    (htmlize-generate-image (cdr display))))
-
 (defsubst htmlize-concat (list)
   (if (and (consp list) (null (cdr list)))
       ;; Don't create a new string in the common case where the list only
@@ -438,35 +446,87 @@ next-single-char-property-change")))
       (car list)
     (apply #'concat list)))
 
+(defun htmlize-display-prop-to-html (display text)
+  (let (desc)
+    (cond ((stringp display)
+           ;; Emacs ignores recursive display properties.
+           (htmlize-protect-string display))
+          ((not (eq (car-safe display) 'image))
+           (htmlize-protect-string text))
+          ((null (setq desc (funcall htmlize-transform-image
+                                     (cdr display) text)))
+           (htmlize-protect-string text))
+          ((stringp desc)
+           (htmlize-protect-string desc))
+          (t
+           (htmlize-generate-image desc text)))))
+
 (defun htmlize-string-to-html (string)
   ;; Convert the string to HTML, including images attached as
-  ;; `display' property.
+  ;; `display' property.  In a string without `display', this is
+  ;; equivalent to `htmlize-protect-string'.
   (let ((pos 0) (end (length string))
-        display outlist next-change)
+        chunk display outlist next-display-change)
     (while (< pos end)
       (setq display (get-char-property pos 'display string)
-	    next-change (next-single-property-change pos 'display string end))
-      (if (htmlize-usable-display-prop display)
-          (push (htmlize-display-prop-to-html display) outlist)
-        ;; If we don't interpret the display prop, ignore it and show
-        ;; the string.
-        (push (htmlize-protect-string (substring string pos next-change))
-              outlist))
-      (setq pos next-change))
+	    next-display-change (next-single-property-change
+                                 pos 'display string end)
+            chunk (substring string pos next-display-change))
+      (push
+       (if display
+           (htmlize-display-prop-to-html display chunk)
+         (htmlize-protect-string chunk))
+       outlist)
+      (setq pos next-display-change))
     (htmlize-concat (nreverse outlist))))
 
-(defun htmlize-generate-image (imgprops)
-  (cond ((plist-get imgprops :file)
-         ;; Try to find the image in image-load-path
-         (let* ((found-props (cdr (find-image (list imgprops))))
-                (file (or (plist-get found-props :file)
-                          (plist-get imgprops :file))))
-           (format "<img src=\"%s\" />"
-                   (htmlize-protect-string (file-relative-name file)))))
-        ((plist-get imgprops :data)
-         (format "<img src=\"data:image/%s;base64,%s\" />"
-                 (or (plist-get imgprops :type) "")
-                 (base64-encode-string (plist-get imgprops :data))))))
+(defun htmlize-default-transform-image (imgprops _text)
+  "Default transformation of image descriptor to something usable in HTML.
+
+If `htmlize-use-images' is nil, the function always returns nil, meaning
+use original text.  Otherwise, it tries to find the image for images that
+specify a file name.  If `htmlize-force-inline-images' is non-nil, it also
+converts the :file attribute to :data and returns the modified property
+list."
+  (when htmlize-use-images
+    (when (plist-get imgprops :file)
+      (let ((location (plist-get (cdr (find-image (list imgprops))) :file)))
+        (when location
+          (setq imgprops (plist-put (copy-list imgprops) :file location)))))
+    (if htmlize-force-inline-images
+        (let ((location (plist-get imgprops :file))
+              data)
+          (when location
+            (with-temp-buffer
+              (condition-case nil
+                  (progn
+                    (insert-file-contents-literally location)
+                    (setq data (buffer-string)))
+                (error nil))))
+          ;; if successful, return the new plist, otherwise return
+          ;; nil, which will use the original text
+          (and data
+               (plist-put (plist-put imgprops :file nil)
+                          :data data)))
+      imgprops)))
+
+(defun htmlize-generate-image (imgprops origtext)
+  (let ((alt (if (zerop (length origtext))
+                 ""
+               (format " alt=\"%s\"" (htmlize-protect-string origtext)))))
+    (cond ((plist-get imgprops :file)
+           ;; Try to find the image in image-load-path
+           (let* ((found-props (cdr (find-image (list imgprops))))
+                  (file (or (plist-get found-props :file)
+                            (plist-get imgprops :file))))
+             (format "<img src=\"%s\"%s />"
+                     (htmlize-protect-string (file-relative-name file))
+                     alt)))
+          ((plist-get imgprops :data)
+           (format "<img src=\"data:image/%s;base64,%s\"%s />"
+                   (or (plist-get imgprops :type) "")
+                   (base64-encode-string (plist-get imgprops :data))
+                   alt)))))
 
 (defconst htmlize-ellipsis "...")
 (put-text-property 0 (length htmlize-ellipsis) 'htmlize-ellipsis t htmlize-ellipsis)

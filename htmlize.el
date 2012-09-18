@@ -251,7 +251,7 @@ triples.  When this variable is non-nil, `htmlize' uses `rgb.txt' to
 look up color names.
 
 If this variable is nil, htmlize queries Emacs for RGB components of
-colors using `color-instance-rgb-components' and `x-color-values'.
+colors using `color-instance-rgb-components' and `color-values'.
 This can yield incorrect results on non-true-color displays.
 
 If the `rgb.txt' file is not found (which will be the case if you're
@@ -690,7 +690,11 @@ without modifying their meaning."
 ;;; Color handling.
 
 (defvar htmlize-x-library-search-path
-  '("/usr/X11R6/lib/X11/"
+  `(,data-directory
+    "/etc/X11/rgb.txt"
+    "/usr/share/X11/rgb.txt"
+    ;; the remainder of this list really belongs in a museum
+    "/usr/X11R6/lib/X11/"
     "/usr/X11R5/lib/X11/"
     "/usr/lib/X11R6/X11/"
     "/usr/lib/X11R5/X11/"

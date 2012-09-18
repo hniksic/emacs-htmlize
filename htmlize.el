@@ -146,12 +146,14 @@ embedded in the HTML as data URIs."
   :group 'htmlize)
 
 (defcustom htmlize-transform-image 'htmlize-default-transform-image
-  "*Function called with the property list of an image descriptor.
+  "*Function called to modify the image descriptor.
 
-It should return the property list to use instead of the current property
-list, nil if the `display' property is to be ignored and the original
-buffer text used, or a string to use instead of the original buffer text
-and the image."
+The function is called with the image descriptor found in the buffer and
+the text the image is supposed to replace.  It should return a (possibly
+different) image descriptor property list or a replacement string to use
+instead of of the original buffer text.
+
+Returning nil is the same as returning the original text."
   :type 'boolean
   :group 'htmlize)
 

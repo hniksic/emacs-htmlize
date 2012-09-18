@@ -388,7 +388,7 @@ next-single-char-property-change")))
      (aref table ?>) "&gt;"
      ;; Not escaping '"' buys us a measurable speedup.  It's only
      ;; necessary to quote it for strings used in attribute values,
-     ;; which htmlize doesn't do.
+     ;; which htmlize doesn't typically do.
      ;(aref table ?\") "&quot;"
      )
     table))
@@ -438,6 +438,18 @@ next-single-char-property-change")))
 		   (setf (gethash char htmlize-extended-character-cache)
 			 (char-to-string char)))))
 	       string "")))
+
+(defun htmlize-attr-escape (string)
+  ;; Like htmlize-protect-string, but also escapes double-quoted
+  ;; strings to make it usable in attribute values.
+  (setq string (htmlize-protect-string string))
+  (if (not (string-match "\"" string))
+      string
+    (mapconcat (lambda (char)
+                 (if (eql char ?\")
+                     "&quot;"
+                   (char-to-string char)))
+               string "")))
 
 (defsubst htmlize-concat (list)
   (if (and (consp list) (null (cdr list)))
@@ -513,14 +525,14 @@ list."
 (defun htmlize-generate-image (imgprops origtext)
   (let ((alt (if (zerop (length origtext))
                  ""
-               (format " alt=\"%s\"" (htmlize-protect-string origtext)))))
+               (format " alt=\"%s\"" (htmlize-attr-escape origtext)))))
     (cond ((plist-get imgprops :file)
            ;; Try to find the image in image-load-path
            (let* ((found-props (cdr (find-image (list imgprops))))
                   (file (or (plist-get found-props :file)
                             (plist-get imgprops :file))))
              (format "<img src=\"%s\"%s />"
-                     (htmlize-protect-string (file-relative-name file))
+                     (htmlize-attr-escape (file-relative-name file))
                      alt)))
           ((plist-get imgprops :data)
            (format "<img src=\"data:image/%s;base64,%s\"%s />"

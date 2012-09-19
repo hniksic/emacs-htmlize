@@ -145,6 +145,14 @@ embedded in the HTML as data URIs."
   :type 'boolean
   :group 'htmlize)
 
+(defcustom htmlize-max-alt-text 100
+  "*Maximum size of text to use as ALT text in images.
+
+Normally when htmlize encounters text covered by the `display' property
+that specifies an image, it generates an `alt' attribute containing the
+original text.  If the text is larger than `htmlize-max-alt-text' characters,
+this will not be done.")
+
 (defcustom htmlize-transform-image 'htmlize-default-transform-image
   "*Function called to modify the image descriptor.
 
@@ -524,10 +532,17 @@ list."
                           :data data)))
       imgprops)))
 
+(defun htmlize-alt-text (_imgprops origtext)
+  (and (/= (length origtext) 0)
+       (<= (length origtext) htmlize-max-alt-text)
+       (not (string-match "[\0-\x1f]" origtext))
+       origtext))
+
 (defun htmlize-generate-image (imgprops origtext)
-  (let ((alt (if (zerop (length origtext))
-                 ""
-               (format " alt=\"%s\"" (htmlize-attr-escape origtext)))))
+  (let* ((alt-text (htmlize-alt-text imgprops origtext))
+         (alt-attr (if alt-text
+                       (format " alt=\"%s\"" (htmlize-attr-escape alt-text))
+                     "")))
     (cond ((plist-get imgprops :file)
            ;; Try to find the image in image-load-path
            (let* ((found-props (cdr (find-image (list imgprops))))
@@ -535,12 +550,12 @@ list."
                             (plist-get imgprops :file))))
              (format "<img src=\"%s\"%s />"
                      (htmlize-attr-escape (file-relative-name file))
-                     alt)))
+                     alt-attr)))
           ((plist-get imgprops :data)
            (format "<img src=\"data:image/%s;base64,%s\"%s />"
                    (or (plist-get imgprops :type) "")
                    (base64-encode-string (plist-get imgprops :data))
-                   alt)))))
+                   alt-attr)))))
 
 (defconst htmlize-ellipsis "...")
 (put-text-property 0 (length htmlize-ellipsis) 'htmlize-ellipsis t htmlize-ellipsis)

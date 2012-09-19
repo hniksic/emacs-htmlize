@@ -166,10 +166,12 @@ Returning nil is the same as returning the original text."
   :group 'htmlize)
 
 (defcustom htmlize-generate-hyperlinks t
-  "Non-nil means generate the hyperlinks for URLs and mail addresses.
+  "Non-nil means auto-generate the links from URLs and mail addresses in buffer.
+
 This is on by default; set it to nil if you don't want htmlize to
-insert hyperlinks in the resulting HTML.  (In which case you can still
-do your own hyperlinkification from htmlize-after-hook.)"
+autogenerate such links.  Note that this option only turns off automatic
+search for contents that looks like URLs and converting them to links.
+It has no effect on whether htmlize respects the `htmlize-link' property."
   :type 'boolean
   :group 'htmlize)
 
@@ -763,39 +765,42 @@ list."
     (values text trailing-ellipsis)))
 
 (defun htmlize-despam-address (string)
-  "Replace every occurrence of '@' in STRING with &#64;.
-`htmlize-make-hyperlinks' uses this to spam-protect mailto links
-without modifying their meaning."
+  "Replace every occurrence of '@' in STRING with %40.
+This is used to protect mailto links without modifying their meaning."
   ;; Suggested by Ville Skytta.
   (while (string-match "@" string)
-    (setq string (replace-match "&#64;" nil t string)))
+    (setq string (replace-match "%40" nil t string)))
   string)
 
-(defun htmlize-make-hyperlinks ()
-  "Make hyperlinks in HTML."
+(defun htmlize-make-link-overlay (beg end uri)
+  (let ((overlay (make-overlay beg end)))
+    (overlay-put overlay 'htmlize-link (list :uri uri))
+    overlay))
+
+(defun htmlize-create-auto-links ()
+  "Add `htmlize-link' property to all mailto links in the buffer.
+Returns the list of created overlays."
   ;; Function originally submitted by Ville Skytta.  Rewritten by
   ;; Hrvoje Niksic, then modified by Ville Skytta and Hrvoje Niksic.
-  (goto-char (point-min))
-  (while (re-search-forward
-	  "&lt;\\(\\(mailto:\\)?\\([-=+_.a-zA-Z0-9]+@[-_.a-zA-Z0-9]+\\)\\)&gt;"
-	  nil t)
-    (let ((address (match-string 3))
-	  (link-text (match-string 1)))
-      (delete-region (match-beginning 0) (match-end 0))
-      (insert "&lt;<a href=\"mailto:"
-	      (htmlize-despam-address address)
-	      "\">"
-	      (htmlize-despam-address link-text)
-	      "</a>&gt;")))
-  (goto-char (point-min))
-  (while (re-search-forward "&lt;\\(\\(URL:\\)?\\([a-zA-Z]+://[^;]+\\)\\)&gt;"
-			    nil t)
-    (let ((url (match-string 3))
-	  (link-text (match-string 1)))
-      (delete-region (match-beginning 0) (match-end 0))
-      (insert "&lt;<a href=\"" url "\">" link-text "</a>&gt;"))))
+  (let ((overlays nil))
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward
+              "<\\(\\(mailto:\\)?\\([-=+_.a-zA-Z0-9]+@[-_.a-zA-Z0-9]+\\)\\)>"
+              nil t)
+        (let* ((address (match-string 3))
+               (beg (match-beginning 0)) (end (match-end 0))
+               (uri (concat "mailto:" (htmlize-despam-address address))))
+          (push (htmlize-make-link-overlay beg end uri) overlays)))
+      (goto-char (point-min))
+      (while (re-search-forward "<\\(\\(URL:\\)?\\([a-zA-Z]+://[^;]+\\)\\)>"
+                                nil t)
+        (push (htmlize-make-link-overlay
+               (match-beginning 0) (match-end 0) (match-string 3))
+              overlays)))
+    overlays))
 
-;; Tests for htmlize-make-hyperlinks:
+;; Tests for htmlize-create-auto-links:
 
 ;; <mailto:hniksic@xemacs.org>
 ;; <http://fly.srk.fer.hr>
@@ -1570,7 +1575,9 @@ it's called with the same value of KEY.  All other times, the cached
                                              (file-name-nondirectory
                                               (buffer-file-name)))
                                           "*html*")))
-          (completed nil))
+          (completed nil)
+          (auto-link-overlays (and htmlize-generate-hyperlinks
+                                   (htmlize-create-auto-links))))
       (unwind-protect
           (let* ((buffer-faces (htmlize-faces-in-buffer))
                  (face-map (htmlize-make-face-map (adjoin 'default buffer-faces)))
@@ -1654,8 +1661,6 @@ it's called with the same value of KEY.  All other times, the cached
               (insert "\n  </body>")
               (put places 'body-end (point-marker))
               (insert "\n</html>\n")
-              (when htmlize-generate-hyperlinks
-                (htmlize-make-hyperlinks))
               (htmlize-defang-local-variables)
               (when htmlize-replace-form-feeds
                 ;; Change each "\n^L" to "<hr />".
@@ -1682,7 +1687,8 @@ it's called with the same value of KEY.  All other times, the cached
             htmlbuf)
 
         (when (not completed)
-          (kill-buffer htmlbuf))))))
+          (kill-buffer htmlbuf))
+        (mapc #'delete-overlay auto-link-overlays)))))
 
 ;; Utility functions.
 

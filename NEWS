@@ -1,0 +1,24 @@
+htmlize NEWS -- history of user-visible changes.
+
+* Changes in htmlize 1.41
+
+** `before-string' and `after-string' overlay properties are now
+recognized by htmlize and inserted into the HTML.
+
+** Images specified by `display' property are recognized and inserted
+into the HTML as <img src=...>.
+
+*** If the image data comes from a file, the image will be rendered as
+a relative URI that would resolve to that file.  Images whose data
+comes from a string will be rendered inline as data: URIs.  The flag
+`htmlize-force-inline-images' can be used to force inserting *all*
+images inline as data: URIs.
+
+** The image's ALT text will be the text that the `display' property is
+replacing, if non-empty.
+
+** Arbitrary links can now be added to the generated HTML.  If htmlize
+encounters buffer text with `htmlize-link' property, it will wrap the
+text in <a href="uri">...</a>.  If the property value is a string, it
+is interpreted as the URI.  If it is a list, it should be a property
+list whose currently only defined key is :uri.

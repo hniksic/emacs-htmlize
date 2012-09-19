@@ -106,12 +106,12 @@
   :group 'hypermedia)
 
 (defcustom htmlize-head-tags ""
-  "*Additional tags to insert within HEAD of the generated document."
+  "Additional tags to insert within HEAD of the generated document."
   :type 'string
   :group 'htmlize)
 
 (defcustom htmlize-output-type 'css
-  "*Output type of generated HTML, one of `css', `inline-css', or `font'.
+  "Output type of generated HTML, one of `css', `inline-css', or `font'.
 When set to `css' (the default), htmlize will generate a style sheet
 with description of faces, and use it in the HTML document, specifying
 the faces in the actual text with <span class=\"FACE\">.
@@ -132,12 +132,12 @@ sheet to carry around)."
   :group 'htmlize)
 
 (defcustom htmlize-use-images t
-  "*Whether htmlize generates `img' for images attached to buffer contents."
+  "Whether htmlize generates `img' for images attached to buffer contents."
   :type 'boolean
   :group 'htmlize)
 
 (defcustom htmlize-force-inline-images nil
-  "*Non-nil means generate all images inline using data URLs.
+  "Non-nil means generate all images inline using data URLs.
 Normally htmlize converts image descriptors with :file properties to
 relative URIs, and those with :data properties to data URIs.  With this
 flag set, the images specified as a file name are loaded into memory and
@@ -146,7 +146,7 @@ embedded in the HTML as data URIs."
   :group 'htmlize)
 
 (defcustom htmlize-max-alt-text 100
-  "*Maximum size of text to use as ALT text in images.
+  "Maximum size of text to use as ALT text in images.
 
 Normally when htmlize encounters text covered by the `display' property
 that specifies an image, it generates an `alt' attribute containing the
@@ -154,7 +154,7 @@ original text.  If the text is larger than `htmlize-max-alt-text' characters,
 this will not be done.")
 
 (defcustom htmlize-transform-image 'htmlize-default-transform-image
-  "*Function called to modify the image descriptor.
+  "Function called to modify the image descriptor.
 
 The function is called with the image descriptor found in the buffer and
 the text the image is supposed to replace.  It should return a (possibly
@@ -166,7 +166,7 @@ Returning nil is the same as returning the original text."
   :group 'htmlize)
 
 (defcustom htmlize-generate-hyperlinks t
-  "*Non-nil means generate the hyperlinks for URLs and mail addresses.
+  "Non-nil means generate the hyperlinks for URLs and mail addresses.
 This is on by default; set it to nil if you don't want htmlize to
 insert hyperlinks in the resulting HTML.  (In which case you can still
 do your own hyperlinkification from htmlize-after-hook.)"
@@ -184,12 +184,12 @@ do your own hyperlinkification from htmlize-after-hook.)"
         text-decoration: underline;
       }
 "
-  "*The CSS style used for hyperlinks when in CSS mode."
+  "The CSS style used for hyperlinks when in CSS mode."
   :type 'string
   :group 'htmlize)
 
 (defcustom htmlize-replace-form-feeds t
-  "*Non-nil means replace form feeds in source code with HTML separators.
+  "Non-nil means replace form feeds in source code with HTML separators.
 Form feeds are the ^L characters at line beginnings that are sometimes
 used to separate sections of source code.  If this variable is set to
 `t', form feed characters are replaced with the <hr> separator.  If this
@@ -205,7 +205,7 @@ htmlize-after-hook."
   :group 'htmlize)
 
 (defcustom htmlize-html-charset nil
-  "*The charset declared by the resulting HTML documents.
+  "The charset declared by the resulting HTML documents.
 When non-nil, causes htmlize to insert the following in the HEAD section
 of the generated HTML:
 
@@ -230,7 +230,7 @@ leave this option in its default setting."
   :group 'htmlize)
 
 (defcustom htmlize-convert-nonascii-to-entities t
-  "*Whether non-ASCII characters should be converted to HTML entities.
+  "Whether non-ASCII characters should be converted to HTML entities.
 
 When this is non-nil, characters with codes in the 128-255 range will be
 considered Latin 1 and rewritten as \"&#CODE;\".  Characters with codes
@@ -257,7 +257,7 @@ default setting; don't change it unless you know what you're doing."
   :group 'htmlize)
 
 (defcustom htmlize-ignore-face-size 'absolute
-  "*Whether face size should be ignored when generating HTML.
+  "Whether face size should be ignored when generating HTML.
 If this is nil, face sizes are used.  If set to t, sizes are ignored
 If set to `absolute', only absolute size specifications are ignored.
 Please note that font sizes only work with CSS-based output types."
@@ -267,7 +267,7 @@ Please note that font sizes only work with CSS-based output types."
   :group 'htmlize)
 
 (defcustom htmlize-css-name-prefix ""
-  "*The prefix used for CSS names.
+  "The prefix used for CSS names.
 The CSS names that htmlize generates from face names are often too
 generic for CSS files; for example, `font-lock-type-face' is transformed
 to `type'.  Use this variable to add a prefix to the generated names.
@@ -276,7 +276,7 @@ The string \"htmlize-\" is an example of a reasonable prefix."
   :group 'htmlize)
 
 (defcustom htmlize-use-rgb-txt t
-  "*Whether `rgb.txt' should be used to convert color names to RGB.
+  "Whether `rgb.txt' should be used to convert color names to RGB.
 
 This conversion means determining, for instance, that the color
 \"IndianRed\" corresponds to the (205, 92, 92) RGB triple.  `rgb.txt'

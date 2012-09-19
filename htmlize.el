@@ -468,38 +468,62 @@ next-single-char-property-change")))
       (car list)
     (apply #'concat list)))
 
+(defun htmlize-format-link (linkprops text)
+  (let ((uri (if (stringp linkprops)
+                 linkprops
+               (plist-get linkprops :uri))))
+    (if uri
+        (format "<a href=\"%s\">%s</a>" (htmlize-attr-escape uri) text)
+      (htmlize-protect-string text))))
+
+(defun htmlize-escape-or-link (string)
+  ;; Escape STRING and/or add hyperlinks.
+  (let ((pos 0) (end (length string)) outlist)
+    (while (< pos end)
+      (let* ((link (get-char-property pos 'htmlize-link string))
+             (next-link-change (next-single-property-change
+                                pos 'htmlize-link string end))
+             (chunk (substring string pos next-link-change)))
+        (push
+         (if link
+             (htmlize-format-link link chunk)
+           (htmlize-protect-string chunk))
+         outlist)
+        (setq pos next-link-change)))
+    (htmlize-concat (nreverse outlist))))
+
 (defun htmlize-display-prop-to-html (display text)
   (let (desc)
     (cond ((stringp display)
            ;; Emacs ignores recursive display properties.
-           (htmlize-protect-string display))
+           (htmlize-escape-or-link display))
           ((not (eq (car-safe display) 'image))
            (htmlize-protect-string text))
           ((null (setq desc (funcall htmlize-transform-image
                                      (cdr display) text)))
-           (htmlize-protect-string text))
+           (htmlize-escape-or-link text))
           ((stringp desc)
-           (htmlize-protect-string desc))
+           (htmlize-escape-or-link desc))
           (t
            (htmlize-generate-image desc text)))))
 
 (defun htmlize-string-to-html (string)
   ;; Convert the string to HTML, including images attached as
-  ;; `display' property.  In a string without `display', this is
-  ;; equivalent to `htmlize-protect-string'.
-  (let ((pos 0) (end (length string))
-        chunk display outlist next-display-change)
+  ;; `display' property and links as `htmlize-link' property.  In a
+  ;; string without images or links, this is equivalent to
+  ;; `htmlize-protect-string'.
+  (let ((pos 0) (end (length string)) outlist)
     (while (< pos end)
-      (setq display (get-char-property pos 'display string)
-	    next-display-change (next-single-property-change
-                                 pos 'display string end)
-            chunk (substring string pos next-display-change))
-      (push
-       (if display
-           (htmlize-display-prop-to-html display chunk)
-         (htmlize-protect-string chunk))
-       outlist)
-      (setq pos next-display-change))
+      (let* ((display (get-char-property pos 'display string))
+             (next-display-change (next-single-property-change
+                                   pos 'display string end))
+             (chunk (substring string pos next-display-change)))
+        (push
+         (if display
+             (htmlize-display-prop-to-html display chunk)
+           (htmlize-escape-or-link chunk))
+         outlist)
+        (setq pos next-display-change)))
     (htmlize-concat (nreverse outlist))))
 
 (defun htmlize-default-transform-image (imgprops _text)
@@ -617,22 +641,26 @@ list."
           (apply #'concat (nreverse textlist)))
       text)))
 
+(defun htmlize-copy-prop (prop beg end string)
+  ;; Copy the specified property from the specified region of the
+  ;; buffer to the target string.  We cannot rely on Emacs to copy the
+  ;; property because we want to handle properties coming from both
+  ;; text properties and overlays.
+  (let ((pos beg))
+    (while (< pos end)
+      (let ((value (get-char-property pos prop))
+            (next-change (htmlize-next-change pos 'display end)))
+        (when value
+          (put-text-property (- pos beg) (- next-change beg)
+                             prop value string))
+        (setq pos next-change)))))
+
 (defun htmlize-get-text-with-display (beg end)
   ;; Like buffer-substring-no-properties, except it copies the
-  ;; `display' property from the buffer, if found.  We cannot rely on
-  ;; Emacs to copy the property because it can come from either text
-  ;; properties or overlays, and the latter can't be attached to
-  ;; strings.
-  (let ((pos beg)
-        (text (buffer-substring-no-properties beg end))
-        display next-change)
-    (while (< pos end)
-      (setq display (get-char-property pos 'display)
-	    next-change (htmlize-next-change pos 'display end))
-      (when display
-        (put-text-property (- pos beg) (- next-change beg)
-                           'display display text))
-      (setq pos next-change))
+  ;; `display' property from the buffer, if found.
+  (let ((text (buffer-substring-no-properties beg end)))
+    (htmlize-copy-prop 'display beg end text)
+    (htmlize-copy-prop 'htmlize-link beg end text)
     (unless running-xemacs
       (setq text (htmlize-add-before-after-strings beg end text)))
     text))

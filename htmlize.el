@@ -358,12 +358,12 @@ output.")
 next-single-char-property-change")))
 
 (defmacro htmlize-lexlet (&rest letforms)
+  (declare (indent 1) (debug let))
   (if (and (boundp 'lexical-binding)
            lexical-binding)
       `(let ,@letforms)
     ;; cl extensions have a macro implementing lexical let
     `(lexical-let ,@letforms)))
-(put 'htmlize-lexlet 'lisp-indent-function 1)
 
 
 ;;; Transformation of buffer text: HTML escapes, untabification, etc.

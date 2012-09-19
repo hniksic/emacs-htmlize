@@ -471,10 +471,11 @@ next-single-char-property-change")))
 (defun htmlize-format-link (linkprops text)
   (let ((uri (if (stringp linkprops)
                  linkprops
-               (plist-get linkprops :uri))))
+               (plist-get linkprops :uri)))
+        (escaped-text (htmlize-protect-string text)))
     (if uri
-        (format "<a href=\"%s\">%s</a>" (htmlize-attr-escape uri) text)
-      (htmlize-protect-string text))))
+        (format "<a href=\"%s\">%s</a>" (htmlize-attr-escape uri) escaped-text)
+      escaped-text)))
 
 (defun htmlize-escape-or-link (string)
   ;; Escape STRING and/or add hyperlinks.

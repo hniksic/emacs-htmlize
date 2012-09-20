@@ -332,7 +332,7 @@ output.")
  (htmlize-running-xemacs
   (defun htmlize-next-change (pos prop &optional limit)
     (if prop
-        (next-single-property-change pos prop nil (or limit (point-max)))
+        (next-single-char-property-change pos prop nil (or limit (point-max)))
       (next-property-change pos nil (or limit (point-max)))))
   (defun htmlize-next-face-change (pos &optional limit)
     (htmlize-next-change pos 'face limit)))
@@ -374,6 +374,22 @@ next-single-char-property-change")))
       `(let ,@letforms)
     ;; cl extensions have a macro implementing lexical let
     `(lexical-let ,@letforms)))
+
+;; Simple overlay emulation for XEmacs
+
+(cond
+ (running-xemacs
+  (defalias 'htmlize-make-overlay 'make-extent)
+  (defalias 'htmlize-overlay-put 'set-extent-property)
+  (defalias 'htmlize-overlay-get 'extent-property)
+  (defun htmlize-overlays-in (beg end) (extent-list nil beg end))
+  (defalias 'htmlize-delete-overlay 'detach-extent))
+ (t
+  (defalias 'htmlize-make-overlay 'make-overlay)
+  (defalias 'htmlize-overlay-put 'overlay-put)
+  (defalias 'htmlize-overlay-get 'overlay-get)
+  (defalias 'htmlize-overlays-in 'overlays-in)
+  (defalias 'htmlize-delete-overlay 'delete-overlay)))
 
 
 ;;; Transformation of buffer text: HTML escapes, untabification, etc.
@@ -773,23 +789,22 @@ This is used to protect mailto links without modifying their meaning."
   string)
 
 (defun htmlize-make-tmp-overlay (beg end props)
-  (let ((overlay (make-overlay beg end)))
-    (overlay-put overlay 'htmlize-tmp-overlay t)
+  (let ((overlay (htmlize-make-overlay beg end)))
+    (htmlize-overlay-put overlay 'htmlize-tmp-overlay t)
     (while props
-      (overlay-put overlay (pop props) (pop props)))
+      (htmlize-overlay-put overlay (pop props) (pop props)))
     overlay))
 
 (defun htmlize-delete-tmp-overlays ()
-  (dolist (overlay (overlays-in (point-min) (point-max)))
-    (when (overlay-get overlay 'htmlize-tmp-overlay)
-      (delete-overlay overlay))))
+  (dolist (overlay (htmlize-overlays-in (point-min) (point-max)))
+    (when (htmlize-overlay-get overlay 'htmlize-tmp-overlay)
+      (htmlize-delete-overlay overlay))))
 
 (defun htmlize-make-link-overlay (beg end uri)
   (htmlize-make-tmp-overlay beg end `(htmlize-link (:uri ,uri))))
 
 (defun htmlize-create-auto-links ()
-  "Add `htmlize-link' property to all mailto links in the buffer.
-Returns the list of created overlays."
+  "Add `htmlize-link' property to all mailto links in the buffer."
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward

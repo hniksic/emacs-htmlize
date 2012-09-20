@@ -496,7 +496,8 @@ next-single-char-property-change")))
       escaped-text)))
 
 (defun htmlize-escape-or-link (string)
-  ;; Escape STRING and/or add hyperlinks.
+  ;; Escape STRING and/or add hyperlinks.  STRING comes from a
+  ;; `display' property.
   (let ((pos 0) (end (length string)) outlist)
     (while (< pos end)
       (let* ((link (get-char-property pos 'htmlize-link string))
@@ -504,9 +505,12 @@ next-single-char-property-change")))
                                 pos 'htmlize-link string end))
              (chunk (substring string pos next-link-change)))
         (push
-         (if link
-             (htmlize-format-link link chunk)
-           (htmlize-protect-string chunk))
+         (cond (link
+                (htmlize-format-link link chunk))
+               ((get-char-property 0 'htmlize-literal chunk)
+                chunk)
+               (t
+                (htmlize-protect-string chunk)))
          outlist)
         (setq pos next-link-change)))
     (htmlize-concat (nreverse outlist))))

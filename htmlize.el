@@ -80,8 +80,8 @@
 
 ;; Thanks go to the many people who have sent reports and contributed
 ;; comments, suggestions, and fixes.  They include Ron Gut, Bob
-;; Weiner, Toni Drabik, Peter Breton, Thomas Vogels, Juri Linkov,
-;; Maciek Pasternacki, and many others.
+;; Weiner, Toni Drabik, Peter Breton, Ville Skytta, Thomas Vogels,
+;; Juri Linkov, Maciek Pasternacki, and many others.
 
 ;; User quotes: "You sir, are a sick, sick, _sick_ person. :)"
 ;;                  -- Bill Perry, author of Emacs/W3
@@ -772,33 +772,38 @@ This is used to protect mailto links without modifying their meaning."
     (setq string (replace-match "%40" nil t string)))
   string)
 
-(defun htmlize-make-link-overlay (beg end uri)
+(defun htmlize-make-tmp-overlay (beg end props)
   (let ((overlay (make-overlay beg end)))
-    (overlay-put overlay 'htmlize-link (list :uri uri))
+    (overlay-put overlay 'htmlize-tmp-overlay t)
+    (while props
+      (overlay-put overlay (pop props) (pop props)))
     overlay))
+
+(defun htmlize-delete-tmp-overlays ()
+  (dolist (overlay (overlays-in (point-min) (point-max)))
+    (when (overlay-get overlay 'htmlize-tmp-overlay)
+      (delete-overlay overlay))))
+
+(defun htmlize-make-link-overlay (beg end uri)
+  (htmlize-make-tmp-overlay beg end `(htmlize-link (:uri ,uri))))
 
 (defun htmlize-create-auto-links ()
   "Add `htmlize-link' property to all mailto links in the buffer.
 Returns the list of created overlays."
-  ;; Function originally submitted by Ville Skytta.  Rewritten by
-  ;; Hrvoje Niksic, then modified by Ville Skytta and Hrvoje Niksic.
-  (let ((overlays nil))
-    (save-excursion
-      (goto-char (point-min))
-      (while (re-search-forward
-              "<\\(\\(mailto:\\)?\\([-=+_.a-zA-Z0-9]+@[-_.a-zA-Z0-9]+\\)\\)>"
-              nil t)
-        (let* ((address (match-string 3))
-               (beg (match-beginning 0)) (end (match-end 0))
-               (uri (concat "mailto:" (htmlize-despam-address address))))
-          (push (htmlize-make-link-overlay beg end uri) overlays)))
-      (goto-char (point-min))
-      (while (re-search-forward "<\\(\\(URL:\\)?\\([a-zA-Z]+://[^;]+\\)\\)>"
-                                nil t)
-        (push (htmlize-make-link-overlay
-               (match-beginning 0) (match-end 0) (match-string 3))
-              overlays)))
-    overlays))
+  (save-excursion
+    (goto-char (point-min))
+    (while (re-search-forward
+            "<\\(\\(mailto:\\)?\\([-=+_.a-zA-Z0-9]+@[-_.a-zA-Z0-9]+\\)\\)>"
+            nil t)
+      (let* ((address (match-string 3))
+             (beg (match-beginning 0)) (end (match-end 0))
+             (uri (concat "mailto:" (htmlize-despam-address address))))
+        (htmlize-make-link-overlay beg end uri)))
+    (goto-char (point-min))
+    (while (re-search-forward "<\\(\\(URL:\\)?\\([a-zA-Z]+://[^;]+\\)\\)>"
+                              nil t)
+      (htmlize-make-link-overlay
+       (match-beginning 0) (match-end 0) (match-string 3)))))
 
 ;; Tests for htmlize-create-auto-links:
 
@@ -1575,9 +1580,7 @@ it's called with the same value of KEY.  All other times, the cached
                                              (file-name-nondirectory
                                               (buffer-file-name)))
                                           "*html*")))
-          (completed nil)
-          (auto-link-overlays (and htmlize-generate-hyperlinks
-                                   (htmlize-create-auto-links))))
+          (completed nil))
       (unwind-protect
           (let* ((buffer-faces (htmlize-faces-in-buffer))
                  (face-map (htmlize-make-face-map (adjoin 'default buffer-faces)))
@@ -1585,6 +1588,9 @@ it's called with the same value of KEY.  All other times, the cached
                  (title (if (buffer-file-name)
                             (file-name-nondirectory (buffer-file-name))
                           (buffer-name))))
+            (when htmlize-generate-hyperlinks
+              (htmlize-create-auto-links))
+
             ;; Initialize HTMLBUF and insert the HTML prolog.
             (with-current-buffer htmlbuf
               (buffer-disable-undo)
@@ -1688,7 +1694,7 @@ it's called with the same value of KEY.  All other times, the cached
 
         (when (not completed)
           (kill-buffer htmlbuf))
-        (mapc #'delete-overlay auto-link-overlays)))))
+        (htmlize-delete-tmp-overlays)))))
 
 ;; Utility functions.
 

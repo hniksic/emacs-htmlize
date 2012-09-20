@@ -652,7 +652,7 @@ list."
   (let ((pos beg))
     (while (< pos end)
       (let ((value (get-char-property pos prop))
-            (next-change (htmlize-next-change pos 'display end)))
+            (next-change (htmlize-next-change pos prop end)))
         (when value
           (put-text-property (- pos beg) (- next-change beg)
                              prop value string))

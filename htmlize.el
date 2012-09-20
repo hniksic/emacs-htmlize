@@ -833,6 +833,13 @@ This is used to protect mailto links without modifying their meaning."
 ;; <hniksic@xemacs.org>
 ;; <xalan-dev-sc.10148567319.hacuhiucknfgmpfnjcpg-john=doe.com@xml.apache.org>
 
+(defun htmlize-shadow-form-feeds ()
+  (let ((s "\n<hr />"))
+    (put-text-property 0 (length s) 'htmlize-literal t s)
+    (let ((disp `(display ,s)))
+      (while (re-search-forward "\n\^L" nil t)
+        (htmlize-make-tmp-overlay (match-beginning 0) (match-end 0) disp)))))
+
 (defun htmlize-defang-local-variables ()
   ;; Juri Linkov reports that an HTML-ized "Local variables" can lead
   ;; visiting the HTML to fail with "Local variables list is not
@@ -1609,6 +1616,8 @@ it's called with the same value of KEY.  All other times, the cached
                           (buffer-name))))
             (when htmlize-generate-hyperlinks
               (htmlize-create-auto-links))
+            (when htmlize-replace-form-feeds
+              (htmlize-shadow-form-feeds))
 
             ;; Initialize HTMLBUF and insert the HTML prolog.
             (with-current-buffer htmlbuf
@@ -1687,18 +1696,6 @@ it's called with the same value of KEY.  All other times, the cached
               (put places 'body-end (point-marker))
               (insert "\n</html>\n")
               (htmlize-defang-local-variables)
-              (when htmlize-replace-form-feeds
-                ;; Change each "\n^L" to "<hr />".
-                (goto-char (point-min))
-                (let ((source
-                       ;; ^L has already been escaped, so search for that.
-                       (htmlize-protect-string "\n\^L"))
-                      (replacement
-                       (if (stringp htmlize-replace-form-feeds)
-                           htmlize-replace-form-feeds
-                         "</pre><hr /><pre>")))
-                  (while (search-forward source nil t)
-                    (replace-match replacement t t))))
               (goto-char (point-min))
               (when htmlize-html-major-mode
                 ;; What sucks about this is that the minor modes, most notably

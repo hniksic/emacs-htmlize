@@ -378,7 +378,7 @@ next-single-char-property-change")))
 ;; Simple overlay emulation for XEmacs
 
 (cond
- (running-xemacs
+ (htmlize-running-xemacs
   (defalias 'htmlize-make-overlay 'make-extent)
   (defalias 'htmlize-overlay-put 'set-extent-property)
   (defalias 'htmlize-overlay-get 'extent-property)
@@ -684,7 +684,7 @@ list."
   (let ((text (buffer-substring-no-properties beg end)))
     (htmlize-copy-prop 'display beg end text)
     (htmlize-copy-prop 'htmlize-link beg end text)
-    (unless running-xemacs
+    (unless htmlize-running-xemacs
       (setq text (htmlize-add-before-after-strings beg end text)))
     text))
 

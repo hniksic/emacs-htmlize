@@ -1354,7 +1354,9 @@ property and by buffer overlays that specify `face'."
 	 (let (all-faces)
 	   ;; Faces from text properties.
 	   (let ((face-prop (get-text-property (point) 'face)))
-	     (setq all-faces (htmlize-decode-face-prop face-prop)))
+             ;; we need to reverse the `face' prop because we want
+             ;; more specific faces to come later
+	     (setq all-faces (nreverse (htmlize-decode-face-prop face-prop))))
 	   ;; Faces from overlays.
 	   (let ((overlays
 		  ;; Collect overlays at point that specify `face'.

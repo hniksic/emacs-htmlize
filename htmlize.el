@@ -4,7 +4,7 @@
 
 ;; Author: Hrvoje Niksic <hniksic@xemacs.org>
 ;; Keywords: hypermedia, extensions
-;; Version: 1.44
+;; Version: 1.45
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@
   (defvar font-lock-support-mode)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "1.44")
+(defconst htmlize-version "1.45")
 
 (defgroup htmlize nil
   "Convert buffer text and faces to HTML."

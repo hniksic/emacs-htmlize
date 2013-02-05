@@ -1072,13 +1072,26 @@ If no rgb.txt file is found, return nil."
 (defun htmlize-face-size (face)
   ;; The size (height) of FACE, taking inheritance into account.
   ;; Only works in Emacs 21 and later.
-  (let ((size-list
-	 (loop
-	  for f = face then (face-attribute f :inherit)
-	  until (or (not f) (eq f 'unspecified))
-	  for h = (face-attribute f :height)
-	  collect (if (eq h 'unspecified) nil h))))
-    (reduce 'htmlize-merge-size (cons nil size-list))))
+  (let* ((face-list (list face))
+         (head face-list)
+         (tail face-list))
+    (while head
+      (let ((inherit (face-attribute (car head) :inherit)))
+        (cond ((listp inherit)
+               (setcdr tail (copy-list inherit))
+               (setq tail (last tail)))
+              ((eq inherit 'unspecified))
+              (t
+               (setcdr tail (list inherit))
+               (setq tail (cdr tail)))))
+      (pop head))
+    (message "%s" face-list)
+    (let ((size-list
+           (loop
+            for f in face-list
+            for h = (face-attribute f :height)
+            collect (if (eq h 'unspecified) nil h))))
+      (reduce 'htmlize-merge-size (cons nil size-list)))))
 
 (defun htmlize-face-css-name (face)
   ;; Generate the css-name property for the given face.  Emacs places

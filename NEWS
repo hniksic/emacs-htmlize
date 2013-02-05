@@ -1,5 +1,11 @@
 htmlize NEWS -- history of user-visible changes.
 
+* Changes in htmlize 1.45
+
+** Correctly handle :inherit specifying a list of faces.  (This bug
+would cause an error in AUX TeX buffers.)
+
+
 * Changes in htmlize 1.44
 
 ** Faces specified in the `face' property are now prioritized the same

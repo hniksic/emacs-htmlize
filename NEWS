@@ -1,5 +1,10 @@
 htmlize NEWS -- history of user-visible changes.
 
+* Changes in htmlize 1.47
+
+** GNU Emacs 21 is no longer supported.
+
+
 * Changes in htmlize 1.45
 
 ** Correctly handle :inherit specifying a list of faces.  (This bug

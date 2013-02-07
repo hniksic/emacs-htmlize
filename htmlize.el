@@ -1085,7 +1085,6 @@ If no rgb.txt file is found, return nil."
                (setcdr tail (list inherit))
                (setq tail (cdr tail)))))
       (pop head))
-    (message "%s" face-list)
     (let ((size-list
            (loop
             for f in face-list

@@ -1,10 +1,10 @@
 ;;; htmlize.el --- Convert buffer text and decorations to HTML.
 
-;; Copyright (C) 1997-2003,2005,2006,2009,2011,2012 Hrvoje Niksic
+;; Copyright (C) 1997-2003,2005,2006,2009,2011,2012,2014 Hrvoje Niksic
 
 ;; Author: Hrvoje Niksic <hniksic@xemacs.org>
 ;; Keywords: hypermedia, extensions
-;; Version: 1.47
+;; Version: 1.48
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@
   (defvar font-lock-support-mode)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "1.47")
+(defconst htmlize-version "1.48")
 
 (defgroup htmlize nil
   "Convert buffer text and faces to HTML."

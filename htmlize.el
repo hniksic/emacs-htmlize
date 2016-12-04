@@ -151,7 +151,9 @@ embedded in the HTML as data URIs."
 Normally when htmlize encounters text covered by the `display' property
 that specifies an image, it generates an `alt' attribute containing the
 original text.  If the text is larger than `htmlize-max-alt-text' characters,
-this will not be done.")
+this will not be done."
+  :type 'integer
+  :group 'htmlize)
 
 (defcustom htmlize-transform-image 'htmlize-default-transform-image
   "Function called to modify the image descriptor.

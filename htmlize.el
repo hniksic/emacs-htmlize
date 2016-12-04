@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 1997-2003,2005,2006,2009,2011,2012,2014 Hrvoje Niksic
 
-;; Author: Hrvoje Niksic <hniksic@xemacs.org>
+;; Author: Hrvoje Niksic <hniksic@gmail.com>
 ;; Keywords: hypermedia, extensions
 ;; Version: 1.49
 
@@ -24,7 +24,7 @@
 ;;; Commentary:
 
 ;; This package converts the buffer text and the associated
-;; decorations to HTML.  Mail to <hniksic@xemacs.org> to discuss
+;; decorations to HTML.  Mail to <hniksic@gmail.com> to discuss
 ;; features and additions.  All suggestions are more than welcome.
 
 ;; To use it, just switch to the buffer you want HTML-ized and type

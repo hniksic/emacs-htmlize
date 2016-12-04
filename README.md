@@ -1,3 +1,7 @@
+# htmlize --- Convert buffer text and decorations to HTML
+
+[![MELPA](https://melpa.org/packages/htmlize-badge.svg)](https://melpa.org/#/htmlize)
+
 This package converts the buffer text and the associated
 decorations to HTML.  Mail to <hniksic@gmail.com> to discuss
 features and additions.  All suggestions are more than welcome.
@@ -27,7 +31,4 @@ colors supported by the terminal.
 htmlize aims for compatibility with Emacsen version 21 and later.
 Please let me know if it doesn't work on the version of XEmacs or
 GNU Emacs that you are using.  The package relies on the presence
-of CL extensions, especially for cross-emacs compatibility; please
-don't try to remove that dependency.  I see no practical problems
-with using the full power of the CL extensions, except that one
-might learn to like them too much.
+of CL extensions, especially for cross-emacs compatibility.

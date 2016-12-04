@@ -19,7 +19,7 @@ same for files marked in a dired buffer.
 htmlize supports three types of HTML output, selected by setting
 `htmlize-output-type`: `css`, `inline-css` (optimized for code
 snippets), and `font` (simpler output, doesn't rely on CSS).  See
-[`htmlize.el.html`](htmlize.el.html) for an example of generated HTML.
+[`htmlize.el.html`][1] for an example of generated HTML.
 
 You can also use htmlize from your Emacs Lisp code.  When called
 non-interactively, `htmlize-buffer` and `htmlize-region` will
@@ -32,3 +32,6 @@ htmlize aims for compatibility with Emacsen version 21 and later.
 Please let me know if it doesn't work on the version of XEmacs or
 GNU Emacs that you are using.  The package relies on the presence
 of CL extensions, especially for cross-emacs compatibility.
+
+
+[1]: http://htmlpreview.github.io/?https://github.com/hniksic/emacs-htmlize/blob/master/htmlize.el.html

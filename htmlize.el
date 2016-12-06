@@ -1024,6 +1024,27 @@ If no rgb.txt file is found, return nil."
   css-name				; CSS name of face
   )
 
+(defvar htmlize-color-scheme nil
+  "The color scheme that htmlize should use.
+
+If nil, colors are infered from the current settings for fonts in
+the current frame.
+
+Otherwise, should be an plist of faces, and either color
+names (specifying the foreground color), or a plist of face
+properties and their values.
+
+For example:
+
+  (setq htmlize-color-scheme
+        '(
+         font-lock-warning-face \"black\"
+         font-lock-function-name-face \"red\"
+         font-lock-comment-face \"blue\"
+         default (:foreground \"dark-green\" :background \"yellow\")))
+
+This variable can be also be `let' bound when running `htmlize-buffer'.")
+
 (defun htmlize-face-set-from-keyword-attr (fstruct attr value)
   ;; For ATTR and VALUE, set the equivalent value in FSTRUCT.
   (case attr
@@ -1235,12 +1256,15 @@ If no rgb.txt file is found, return nil."
         (t
          (apply #'nconc (mapcar #'htmlize-decode-face-prop prop)))))
 
-(defun htmlize-make-face-map (faces)
-  ;; Return a hash table mapping Emacs faces to htmlize's fstructs.
+(defun htmlize-make-face-map-hash ()
   ;; The keys are either face symbols or attrlists, so the test
   ;; function must be `equal'.
-  (let ((face-map (make-hash-table :test 'equal))
-	css-names)
+  (make-hash-table :test 'equal))
+
+(defun htmlize-make-face-map-1 (faces)
+  ;; Return a hash table mapping Emacs faces to htmlize's fstructs.
+  (let ((face-map (htmlize-make-face-map-hash))
+        css-names)
     (dolist (face faces)
       (unless (gethash face face-map)
 	;; Haven't seen FACE yet; convert it to an fstruct and cache
@@ -1260,6 +1284,64 @@ If no rgb.txt file is found, return nil."
 	      (setf (htmlize-fstruct-css-name fstruct) new-name))
 	    (push new-name css-names)))))
     face-map))
+
+(defun htmlize-fstruct-add-face-name (fstruct face)
+  "Set the name of FSTRUCT according to FACE."
+  (setf (htmlize-fstruct-css-name fstruct)
+        (htmlize-face-css-name face))
+  fstruct)
+
+(defun htmlize-color-scheme-into-hash (hash &optional args)
+  "Add to HASH, elements from ARGS.
+
+See `htmlize-color-scheme' for details of ARGS."
+  (if args
+    (let ((face (car args))
+          (attrlist (cadr args))
+          (rest (cddr args)))
+      (puthash face
+               (htmlize-fstruct-add-face-name
+                (htmlize-attrlist-to-fstruct
+                 (if (listp attrlist)
+                     attrlist
+                   (list :foreground attrlist)))
+                face)
+               hash)
+      (htmlize-color-scheme-into-hash hash rest))
+    hash))
+
+(defun htmlize-color-scheme-to-full-map (faces)
+  "Given FACES return a hash of `htmlize-fstruct' instances.
+
+Values for the instances come from `htmlize-color-scheme'"
+  (let ((hash (htmlize-make-face-map-hash)))
+    ;; transform htmlize-color-scheme into fstruct
+    (htmlize-color-scheme-into-hash
+     hash htmlize-color-scheme)
+    ;; and add null fstruct for all the others
+    (mapc
+     (lambda (face)
+       (unless (gethash face hash)
+         (let ((fstruct
+                (htmlize-fstruct-add-face-name
+                 (make-htmlize-fstruct)
+                 face)))
+           (puthash
+            face
+            fstruct
+            hash))))
+     faces)
+    hash))
+
+(defun htmlize-make-face-map (faces)
+  "Given FACES return a hash linked to `htmlize-fstruct'
+instances.
+
+If `htmlize-color-scheme' is set use the values there, otherwise convert
+colors based on the current fontification."
+  (if htmlize-color-scheme
+      (htmlize-color-scheme-to-full-map faces)
+     (htmlize-make-face-map-1 faces)))
 
 (defun htmlize-unstringify-face (face)
   "If FACE is a string, return it interned, otherwise return it unchanged."

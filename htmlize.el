@@ -91,7 +91,7 @@
   (defvar font-lock-support-mode)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "1.48")
+(defconst htmlize-version "1.49")
 
 (defgroup htmlize nil
   "Convert buffer text and faces to HTML."

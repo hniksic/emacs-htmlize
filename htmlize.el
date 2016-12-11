@@ -4,7 +4,7 @@
 
 ;; Author: Hrvoje Niksic <hniksic@gmail.com>
 ;; Keywords: hypermedia, extensions
-;; Version: 1.50
+;; Version: 1.51
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@
   (defvar font-lock-support-mode)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "1.50")
+(defconst htmlize-version "1.51")
 
 (defgroup htmlize nil
   "Convert buffer text and faces to HTML."

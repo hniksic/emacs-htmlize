@@ -1,5 +1,11 @@
 htmlize NEWS -- history of user-visible changes.
 
+* Changes in htmlize 1.51
+
+** `htmlize-face-overrides' can be used to override Emacs's face
+definitions.
+
+
 * Changes in htmlize 1.47
 
 ** GNU Emacs 21 is no longer supported.

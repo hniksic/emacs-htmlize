@@ -289,6 +289,23 @@ running Emacs on non-X11 systems), this option is ignored."
   :type 'boolean
   :group 'htmlize)
 
+(defvar htmlize-face-overrides nil
+  "Overrides for face definitions.
+
+Normally face definitions are taken from Emacs settings for fonts
+in the current frame.  For faces present in this plist, the
+definitions will be used instead.  Keys in the plist are symbols
+naming the face and values are the overriding definitions.  For
+example:
+
+  (setq htmlize-face-overrides
+        '(font-lock-warning-face \"black\"
+          font-lock-function-name-face \"red\"
+          font-lock-comment-face \"blue\"
+          default (:foreground \"dark-green\" :background \"yellow\")))
+
+This variable can be also be `let' bound when running `htmlize-buffer'.")
+
 (defcustom htmlize-html-major-mode nil
   "The mode the newly created HTML buffer will be put in.
 Set this to nil if you prefer the default (fundamental) mode."
@@ -1180,7 +1197,7 @@ If no rgb.txt file is found, return nil."
 ;; htmlize supports attrlist by converting them to fstructs, the same
 ;; as with regular faces.
 
-(defun htmlize-attrlist-to-fstruct (attrlist)
+(defun htmlize-attrlist-to-fstruct (attrlist &optional name)
   ;; Like htmlize-face-to-fstruct, but accepts an ATTRLIST as input.
   (let ((fstruct (make-htmlize-fstruct)))
     (cond ((eq (car attrlist) 'foreground-color)
@@ -1198,7 +1215,7 @@ If no rgb.txt file is found, return nil."
 		   (value (pop attrlist)))
 	       (when (and value (not (eq value 'unspecified)))
 		 (htmlize-face-set-from-keyword-attr fstruct attr value))))))
-    (setf (htmlize-fstruct-css-name fstruct) "ATTRLIST")
+    (setf (htmlize-fstruct-css-name fstruct) (or name "custom"))
     fstruct))
 
 (defun htmlize-decode-face-prop (prop)
@@ -1235,6 +1252,17 @@ If no rgb.txt file is found, return nil."
         (t
          (apply #'nconc (mapcar #'htmlize-decode-face-prop prop)))))
 
+(defun htmlize-get-override-fstruct (face)
+  (let* ((raw-def (plist-get htmlize-face-overrides face))
+         (def (cond ((stringp raw-def) (list :foreground raw-def))
+                    ((listp raw-def) raw-def)
+                    (t
+                     (error (format (concat "face override must be an "
+                                            "attribute list or string, got %s")
+                                    raw-def))))))
+    (and def
+         (htmlize-attrlist-to-fstruct def (symbol-name face)))))
+
 (defun htmlize-make-face-map (faces)
   ;; Return a hash table mapping Emacs faces to htmlize's fstructs.
   ;; The keys are either face symbols or attrlists, so the test
@@ -1246,7 +1274,8 @@ If no rgb.txt file is found, return nil."
 	;; Haven't seen FACE yet; convert it to an fstruct and cache
 	;; it.
 	(let ((fstruct (if (symbolp face)
-			   (htmlize-face-to-fstruct face)
+                           (or (htmlize-get-override-fstruct face)
+                               (htmlize-face-to-fstruct face))
 			 (htmlize-attrlist-to-fstruct face))))
 	  (setf (gethash face face-map) fstruct)
 	  (let* ((css-name (htmlize-fstruct-css-name fstruct))

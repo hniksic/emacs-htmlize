@@ -1,6 +1,6 @@
 ;;; htmlize.el --- Convert buffer text and decorations to HTML. -*- lexical-binding: t -*-
 
-;; Copyright (C) 1997-2003,2005,2006,2009,2011,2012,2014 Hrvoje Niksic
+;; Copyright (C) 1997-2003,2005,2006,2009,2011,2012,2014,2017 Hrvoje Niksic
 
 ;; Author: Hrvoje Niksic <hniksic@gmail.com>
 ;; Keywords: hypermedia, extensions

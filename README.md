@@ -28,7 +28,7 @@ buffer or move the point.  htmlize will do its best to work on
 non-windowing Emacs sessions but the result will be limited to
 colors supported by the terminal.
 
-htmlize aims for compatibility with Emacsen version 21 and later.
+htmlize aims for compatibility with Emacsen version 22 and later.
 Please let me know if it doesn't work on the version of XEmacs or
 GNU Emacs that you are using.  The package relies on the presence
 of CL extensions, especially for cross-emacs compatibility.

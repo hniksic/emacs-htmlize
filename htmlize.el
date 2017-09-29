@@ -1410,8 +1410,8 @@ property and by buffer overlays that specify `face'."
 ;; use CSS, and others the <font> element.  We take an OO approach and
 ;; define "methods" that indirect to the functions that depend on
 ;; `htmlize-output-type'.  The currently used methods are `doctype',
-;; `insert-head', `body-tag', and `text-markup'.  Not all output types
-;; define all methods.
+;; `insert-head', `body-tag', `pre-tag', and `text-markup'.  Not all
+;; output types define all methods.
 ;;
 ;; Methods are called either with (htmlize-method METHOD ARGS...) 
 ;; special form, or by accessing the function with
@@ -1463,6 +1463,12 @@ it's called with the same value of KEY.  All other times, the cached
   nil					; no doc-string
   face-map ; shut up the byte-compiler
   "<body>")
+
+(defun htmlize-default-pre-tag (face-map)
+  nil					; no doc-string
+  face-map ; shut up the byte-compiler
+  "<pre>")
+
 
 ;;; CSS based output support.
 
@@ -1550,6 +1556,11 @@ it's called with the same value of KEY.  All other times, the cached
 	  (mapconcat #'identity (htmlize-css-specs (gethash 'default face-map))
 		     " ")))
 
+(defun htmlize-inline-css-pre-tag (face-map)
+  (format "<pre style=\"%s\">"
+	  (mapconcat #'identity (htmlize-css-specs (gethash 'default face-map))
+		     " ")))
+
 (defun htmlize-inline-css-text-markup (fstruct-list buffer)
   (let* ((merged (htmlize-merge-faces fstruct-list))
 	 (style (htmlize-memoize
@@ -1571,6 +1582,12 @@ it's called with the same value of KEY.  All other times, the cached
 (defun htmlize-font-body-tag (face-map)
   (let ((fstruct (gethash 'default face-map)))
     (format "<body text=\"%s\" bgcolor=\"%s\">"
+	    (htmlize-fstruct-foreground fstruct)
+	    (htmlize-fstruct-background fstruct))))
+
+(defun htmlize-font-pre-tag (face-map)
+  (let ((fstruct (gethash 'default face-map)))
+    (format "<pre text=\"%s\" bgcolor=\"%s\">"
 	    (htmlize-fstruct-foreground fstruct)
 	    (htmlize-fstruct-background fstruct))))
        
@@ -1657,7 +1674,7 @@ it's called with the same value of KEY.  All other times, the cached
               (insert (htmlize-method body-tag face-map)
                       "\n    ")
               (put places 'content-start (point-marker))
-              (insert "<pre>\n"))
+              (insert (htmlize-method pre-tag face-map) "\n"))
             (let ((text-markup
                    ;; Get the inserter method, so we can funcall it inside
                    ;; the loop.  Not calling `htmlize-method' in the loop

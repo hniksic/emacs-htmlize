@@ -314,6 +314,13 @@ Set this to nil if you prefer the default (fundamental) mode."
 		 (function :tag "User-defined major mode"))
   :group 'htmlize)
 
+(defcustom htmlize-pre-style nil
+  "When non-nil, `<pre>' tags will be decorated with style
+information in `font' and `inline-css' modes. This allows a
+consistent background for captures of regions."
+  :type 'boolean
+  :group 'htmlize)
+
 (defvar htmlize-before-hook nil
   "Hook run before htmlizing a buffer.
 The hook functions are run in the source buffer (not the resulting HTML
@@ -1557,9 +1564,11 @@ it's called with the same value of KEY.  All other times, the cached
 		     " ")))
 
 (defun htmlize-inline-css-pre-tag (face-map)
-  (format "<pre style=\"%s\">"
-	  (mapconcat #'identity (htmlize-css-specs (gethash 'default face-map))
-		     " ")))
+  (if htmlize-pre-style
+      (format "<pre style=\"%s\">"
+              (mapconcat #'identity (htmlize-css-specs (gethash 'default face-map))
+                         " "))
+    (format "<pre>")))
 
 (defun htmlize-inline-css-text-markup (fstruct-list buffer)
   (let* ((merged (htmlize-merge-faces fstruct-list))
@@ -1586,10 +1595,12 @@ it's called with the same value of KEY.  All other times, the cached
 	    (htmlize-fstruct-background fstruct))))
 
 (defun htmlize-font-pre-tag (face-map)
-  (let ((fstruct (gethash 'default face-map)))
-    (format "<pre text=\"%s\" bgcolor=\"%s\">"
-	    (htmlize-fstruct-foreground fstruct)
-	    (htmlize-fstruct-background fstruct))))
+  (if htmlize-pre-style
+      (let ((fstruct (gethash 'default face-map)))
+        (format "<pre text=\"%s\" bgcolor=\"%s\">"
+                (htmlize-fstruct-foreground fstruct)
+                (htmlize-fstruct-background fstruct)))
+    (format "<pre>")))
        
 (defun htmlize-font-text-markup (fstruct-list buffer)
   ;; In `font' mode, we use the traditional HTML means of altering
@@ -1835,6 +1846,16 @@ the text to another HTML buffer."
 	  (buffer-substring (plist-get htmlize-buffer-places 'content-start)
 			    (plist-get htmlize-buffer-places 'content-end)))
       (kill-buffer htmlbuf))))
+
+(defun htmlize-region-save-screenshot (beg end)
+  "Save the htmlized (see `htmlize-region-for-paste') region in
+the kill ring. Uses `inline-css', with style information in
+`<pre>' tags, so that the rendering of the marked up text
+approximates the buffer as closely as possible."
+  (interactive "r")
+  (let ((htmlize-pre-style t))
+    (kill-new (htmlize-region-for-paste beg end)))
+  (deactivate-mark))
 
 (defun htmlize-make-file-name (file)
   "Make an HTML file name from FILE.

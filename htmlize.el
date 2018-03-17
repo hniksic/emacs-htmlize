@@ -1122,8 +1122,8 @@ If no rgb.txt file is found, return nil."
     ;; Apply the prefix.
     (concat htmlize-css-name-prefix name)))
 
-(defun htmlize-face-to-fstruct (face)
-  "Convert Emacs face FACE to fstruct."
+(defun htmlize-face-to-fstruct-1 (face)
+  "Convert Emacs face FACE to fstruct, internal."
   (let ((fstruct (make-htmlize-fstruct
 		  :foreground (htmlize-color-to-rgb
 			       (htmlize-face-foreground face))
@@ -1152,6 +1152,21 @@ If no rgb.txt file is found, return nil."
         (unless (eql size 1.0) 	; ignore non-spec
           (setf (htmlize-fstruct-size fstruct) size))))
     (setf (htmlize-fstruct-css-name fstruct) (htmlize-face-css-name face))
+    fstruct))
+
+(defun htmlize-face-to-fstruct (face)
+  (let* ((face-list (or (and (symbolp face)
+                            (alist-get face face-remapping-alist))
+                        (list face)))
+         (fstruct (htmlize-merge-faces
+                   (mapcar (lambda (face)
+                             (if (symbolp face)
+                                 (or (htmlize-get-override-fstruct face)
+                                     (htmlize-face-to-fstruct-1 face))
+                               (htmlize-attrlist-to-fstruct face)))
+                           (nreverse face-list)))))
+    (when (symbolp face)
+      (setf (htmlize-fstruct-css-name fstruct) (htmlize-face-css-name face)))
     fstruct))
 
 (defmacro htmlize-copy-attr-if-set (attr-list dest source)
@@ -1280,10 +1295,7 @@ If no rgb.txt file is found, return nil."
       (unless (gethash face face-map)
 	;; Haven't seen FACE yet; convert it to an fstruct and cache
 	;; it.
-	(let ((fstruct (if (symbolp face)
-                           (or (htmlize-get-override-fstruct face)
-                               (htmlize-face-to-fstruct face))
-			 (htmlize-attrlist-to-fstruct face))))
+	(let ((fstruct (htmlize-face-to-fstruct face)))
 	  (setf (gethash face face-map) fstruct)
 	  (let* ((css-name (htmlize-fstruct-css-name fstruct))
 		 (new-name css-name)

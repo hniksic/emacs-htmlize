@@ -1822,10 +1822,10 @@ does not name a directory, it will be used as output file name."
       (let ((buffer-file-name file))
 	;; Set the major mode for the sake of font-lock.
 	(normal-mode)
-	(font-lock-mode 1)
-	(unless font-lock-mode
-	  ;; In GNU Emacs (font-lock-mode 1) doesn't force font-lock,
-	  ;; contrary to the documentation.  This seems to work.
+        (if (fboundp 'font-lock-ensure)
+            (font-lock-ensure)
+          ;; Emacs prior to 25.1
+          (font-lock-mode 1)
 	  (font-lock-fontify-buffer))
 	;; htmlize the buffer and save the HTML.
 	(with-current-buffer (htmlize-buffer-1)

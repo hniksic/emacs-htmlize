@@ -1381,29 +1381,11 @@ property and by buffer overlays that specify `face'."
 		  ;; Collect overlays at point that specify `face'.
 		  (delete-if-not (lambda (o)
 				   (overlay-get o 'face))
-				 (overlays-at (point))))
+				 (nreverse
+                                  (if (>= emacs-major-version 25)
+                                      (overlays-at (point) t)
+                                    (overlays-at (point))))))
 		 list face-prop)
-	     ;; Sort the overlays so the smaller (more specific) ones
-	     ;; come later.  The number of overlays at each one
-	     ;; position should be very small, so the sort shouldn't
-	     ;; slow things down.
-	     (setq overlays (sort* overlays
-				   ;; Sort by ascending...
-				   #'<
-				   ;; ...overlay size.
-				   :key (lambda (o)
-					  (- (overlay-end o)
-					     (overlay-start o)))))
-	     ;; Overlay priorities, if present, override the above
-	     ;; established order.  Larger overlay priority takes
-	     ;; precedence and therefore comes later in the list.
-	     (setq overlays (stable-sort
-			     overlays
-			     ;; Reorder (stably) by acending...
-			     #'<
-			     ;; ...overlay priority.
-			     :key (lambda (o)
-				    (or (overlay-get o 'priority) 0))))
 	     (dolist (overlay overlays)
 	       (setq face-prop (overlay-get overlay 'face)
                      list (nconc (htmlize-decode-face-prop face-prop) list)))

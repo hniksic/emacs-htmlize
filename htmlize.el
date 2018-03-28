@@ -1096,7 +1096,7 @@ If no rgb.txt file is found, return nil."
 
 (defun htmlize-face-to-fstruct (face)
   (let* ((face-list (or (and (symbolp face)
-                            (alist-get face face-remapping-alist))
+                             (cdr (assq face face-remapping-alist)))
                         (list face)))
          (fstruct (htmlize-merge-faces
                    (mapcar (lambda (face)

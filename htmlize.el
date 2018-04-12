@@ -1281,9 +1281,10 @@ overlays that specify `face'."
 
   (defun htmlize-sorted-overlays-at (pos)
     ;; Like OVERLAYS-AT with the SORTED argument, for older Emacsen.
-    (let ((overlays (sort* overlays #'<
-                           :key (lambda (o)
-                                  (- (overlay-end o) (overlay-start o))))))
+    (let ((overlays (overlays-at pos)))
+      (setq overlays (sort* overlays #'<
+                            :key (lambda (o)
+                                   (- (overlay-end o) (overlay-start o)))))
       (setq overlays
             (stable-sort overlays #'<
                          :key (lambda (o)

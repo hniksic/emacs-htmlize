@@ -826,7 +826,15 @@ This is used to protect mailto links without modifying their meaning."
     (put-text-property 0 (length s) 'htmlize-literal t s)
     (let ((disp `(display ,s)))
       (while (re-search-forward "\n\^L" nil t)
-        (htmlize-make-tmp-overlay (match-beginning 0) (match-end 0) disp)))))
+        (let* ((beg (match-beginning 0))
+               (end (match-end 0))
+               (form-feed-pos (1+ beg))
+               ;; don't process ^L if invisible or covered by `display'
+               (show (and (htmlize-decode-invisibility-spec
+                           (get-char-property form-feed-pos 'invisible))
+                          (not (get-char-property form-feed-pos 'display)))))
+          (when show
+            (htmlize-make-tmp-overlay beg end disp)))))))
 
 (defun htmlize-defang-local-variables ()
   ;; Juri Linkov reports that an HTML-ized "Local variables" can lead

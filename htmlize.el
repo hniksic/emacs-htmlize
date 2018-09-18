@@ -80,7 +80,7 @@
 
 ;;; Code:
 
-(require 'cl)
+(require 'cl-lib)
 (eval-when-compile
   (defvar font-lock-auto-fontify)
   (defvar font-lock-support-mode)
@@ -548,7 +548,7 @@ list."
     (when (plist-get imgprops :file)
       (let ((location (plist-get (cdr (find-image (list imgprops))) :file)))
         (when location
-          (setq imgprops (plist-put (copy-list imgprops) :file location)))))
+          (setq imgprops (plist-put (cl-copy-list imgprops) :file location)))))
     (if htmlize-force-inline-images
         (let ((location (plist-get imgprops :file))
               data)
@@ -595,9 +595,9 @@ list."
 (put-text-property 0 (length htmlize-ellipsis) 'htmlize-ellipsis t htmlize-ellipsis)
 
 (defun htmlize-match-inv-spec (inv)
-  (member* inv buffer-invisibility-spec
-           :key (lambda (i)
-                  (if (symbolp i) i (car i)))))
+  (cl-member inv buffer-invisibility-spec
+             :key (lambda (i)
+                    (if (symbolp i) i (car i)))))
 
 (defun htmlize-decode-invisibility-spec (invisible)
   ;; Return t, nil, or `ellipsis', depending on how invisible text should be inserted.
@@ -617,7 +617,7 @@ list."
     ;; CDR, replace the invisible text with an ellipsis.
     (let ((match (if (symbolp invisible)
                      (htmlize-match-inv-spec invisible)
-                   (some #'htmlize-match-inv-spec invisible))))
+                   (cl-some #'htmlize-match-inv-spec invisible))))
       (cond ((null match) t)
             ((cdr-safe (car match)) 'ellipsis)
             (t nil)))))
@@ -641,7 +641,7 @@ list."
     (if additions
         (let ((textlist nil)
               (strpos 0))
-          (dolist (add (stable-sort additions #'< :key #'car))
+          (dolist (add (cl-stable-sort additions #'< :key #'car))
             (let ((addpos (car add))
                   (addtext (cdr add)))
               (push (substring text strpos addpos) textlist)
@@ -986,7 +986,7 @@ If no rgb.txt file is found, return nil."
 ;; type `htmlize-fstruct', while the term "face" is reserved for Emacs
 ;; faces.
 
-(defstruct htmlize-fstruct
+(cl-defstruct htmlize-fstruct
   foreground				; foreground color, #rrggbb
   background				; background color, #rrggbb
   size					; size
@@ -1000,7 +1000,7 @@ If no rgb.txt file is found, return nil."
 
 (defun htmlize-face-set-from-keyword-attr (fstruct attr value)
   ;; For ATTR and VALUE, set the equivalent value in FSTRUCT.
-  (case attr
+  (cl-case attr
     (:foreground
      (setf (htmlize-fstruct-foreground fstruct) (htmlize-color-to-rgb value)))
     (:background
@@ -1033,7 +1033,7 @@ If no rgb.txt file is found, return nil."
     (while head
       (let ((inherit (face-attribute (car head) :inherit)))
         (cond ((listp inherit)
-               (setcdr tail (copy-list inherit))
+               (setcdr tail (cl-copy-list inherit))
                (setq tail (last tail)))
               ((eq inherit 'unspecified))
               (t
@@ -1041,11 +1041,11 @@ If no rgb.txt file is found, return nil."
                (setq tail (cdr tail)))))
       (pop head))
     (let ((size-list
-           (loop
+           (cl-loop
             for f in face-list
             for h = (face-attribute f :height)
             collect (if (eq h 'unspecified) nil h))))
-      (reduce 'htmlize-merge-size (cons nil size-list)))))
+      (cl-reduce 'htmlize-merge-size (cons nil size-list)))))
 
 (defun htmlize-face-css-name (face)
   ;; Generate the css-name property for the given face.  Emacs places
@@ -1113,10 +1113,10 @@ If no rgb.txt file is found, return nil."
   ;;   ...)
   ;; for the given list of boolean attributes.
   (cons 'progn
-	(loop for attr in attr-list
-	      for attr-sym = (intern (format "htmlize-fstruct-%s" attr))
-	      collect `(when (,attr-sym ,source)
-                         (setf (,attr-sym ,dest) (,attr-sym ,source))))))
+	(cl-loop for attr in attr-list
+	         for attr-sym = (intern (format "htmlize-fstruct-%s" attr))
+	         collect `(when (,attr-sym ,source)
+                            (setf (,attr-sym ,dest) (,attr-sym ,source))))))
 
 (defun htmlize-merge-size (merged next)
   ;; Calculate the size of the merge of MERGED and NEXT.
@@ -1144,8 +1144,8 @@ If no rgb.txt file is found, return nil."
 	 ;; return it.
 	 (car fstruct-list))
 	(t
-	 (reduce #'htmlize-merge-two-faces
-		 (cons (make-htmlize-fstruct) fstruct-list)))))
+	 (cl-reduce #'htmlize-merge-two-faces
+		    (cons (make-htmlize-fstruct) fstruct-list)))))
 
 ;; GNU Emacs 20+ supports attribute lists in `face' properties.  For
 ;; example, you can use `(:foreground "red" :weight bold)' as an
@@ -1261,14 +1261,14 @@ overlays that specify `face'."
       (while (< pos (point-max))
         (setq face-prop (get-text-property pos 'face)
               next (or (next-single-property-change pos 'face) (point-max)))
-        (setq faces (nunion (htmlize-decode-face-prop face-prop)
-                            faces :test 'equal))
+        (setq faces (cl-nunion (htmlize-decode-face-prop face-prop)
+                               faces :test 'equal))
         (setq pos next)))
     ;; Faces used by overlays.
     (dolist (overlay (overlays-in (point-min) (point-max)))
       (let ((face-prop (overlay-get overlay 'face)))
-        (setq faces (nunion (htmlize-decode-face-prop face-prop)
-                            faces :test 'equal))))
+        (setq faces (cl-nunion (htmlize-decode-face-prop face-prop)
+                               faces :test 'equal))))
     faces))
 
 (if (>= emacs-major-version 25)
@@ -1278,14 +1278,14 @@ overlays that specify `face'."
   (defun htmlize-sorted-overlays-at (pos)
     ;; Like OVERLAYS-AT with the SORTED argument, for older Emacsen.
     (let ((overlays (overlays-at pos)))
-      (setq overlays (sort* overlays #'<
-                            :key (lambda (o)
-                                   (- (overlay-end o) (overlay-start o)))))
+      (setq overlays (cl-sort overlays #'<
+                              :key (lambda (o)
+                                     (- (overlay-end o) (overlay-start o)))))
       (setq overlays
-            (stable-sort overlays #'<
-                         :key (lambda (o)
-                                (let ((prio (overlay-get o 'priority)))
-                                  (if (numberp prio) prio 0)))))
+            (cl-stable-sort overlays #'<
+                            :key (lambda (o)
+                                   (let ((prio (overlay-get o 'priority)))
+                                     (if (numberp prio) prio 0)))))
       (nreverse overlays))))
 
 
@@ -1306,9 +1306,9 @@ overlays that specify `face'."
     ;; Faces from overlays.
     (let ((overlays
            ;; Collect overlays at point that specify `face'.
-           (delete-if-not (lambda (o)
-                            (overlay-get o 'face))
-                          (nreverse (htmlize-sorted-overlays-at (point)))))
+           (cl-delete-if-not (lambda (o)
+                               (overlay-get o 'face))
+                             (nreverse (htmlize-sorted-overlays-at (point)))))
           list face-prop)
       (dolist (overlay overlays)
         (setq face-prop (overlay-get overlay 'face)
@@ -1420,9 +1420,9 @@ it's called with the same value of KEY.  All other times, the cached
 		     (htmlize-css-specs (gethash 'default face-map))
 		     "\n        ")
 	  "\n      }\n")
-  (dolist (face (sort* (copy-list buffer-faces) #'string-lessp
-		       :key (lambda (f)
-			      (htmlize-fstruct-css-name (gethash f face-map)))))
+  (dolist (face (cl-sort (cl-copy-list buffer-faces) #'string-lessp
+		         :key (lambda (f)
+			        (htmlize-fstruct-css-name (gethash f face-map)))))
     (let* ((fstruct (gethash face face-map))
 	   (cleaned-up-face-name
 	    (let ((s
@@ -1625,7 +1625,7 @@ it's called with the same value of KEY.  All other times, the cached
                 ;; happens in invisible regions).
                 (when (> (length text) 0)
                   ;; Open the new markup if necessary and insert the text.
-                  (when (not (equalp fstruct-list last-fstruct-list))
+                  (when (not (cl-equalp fstruct-list last-fstruct-list))
                     (funcall close-markup)
                     (setq last-fstruct-list fstruct-list
                           close-markup (funcall text-markup fstruct-list htmlbuf)))
@@ -1874,7 +1874,7 @@ corresponding source file."
 (provide 'htmlize)
 
 ;; Local Variables:
-;; byte-compile-warnings: (not cl-functions unresolved obsolete)
+;; byte-compile-warnings: (not unresolved obsolete)
 ;; End:
 
 ;;; htmlize.el ends here

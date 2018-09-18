@@ -302,6 +302,11 @@ example:
 
 This variable can be also be `let' bound when running `htmlize-buffer'.")
 
+(defcustom htmlize-untabify t
+  "Non-nil means untabify buffer contents during htmlization."
+  :type 'boolean
+  :group 'htmlize)
+
 (defcustom htmlize-html-major-mode nil
   "The mode the newly created HTML buffer will be put in.
 Set this to nil if you prefer the default (fundamental) mode."
@@ -710,7 +715,7 @@ list."
       (setf (aref v i) (make-string i ?\ )))
     v))
 
-(defun htmlize-untabify (text start-column)
+(defun htmlize-untabify-string (text start-column)
   "Untabify TEXT, assuming it starts at START-COLUMN."
   (let ((column start-column)
 	(last-match 0)
@@ -762,7 +767,8 @@ list."
       (setq trailing-ellipsis
             (get-text-property (1- (length text))
                                'htmlize-ellipsis text)))
-    (setq text (htmlize-untabify text (current-column)))
+    (when htmlize-untabify
+      (setq text (htmlize-untabify-string text (current-column))))
     (setq text (htmlize-string-to-html text))
     (values text trailing-ellipsis)))
 

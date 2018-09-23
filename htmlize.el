@@ -82,7 +82,6 @@
 
 (require 'cl)
 (eval-when-compile
-  (defvar unresolved)
   (defvar font-lock-auto-fontify)
   (defvar font-lock-support-mode)
   (defvar global-font-lock-mode))
@@ -1875,7 +1874,7 @@ corresponding source file."
 (provide 'htmlize)
 
 ;; Local Variables:
-;; byte-compile-warnings: (not cl-functions lexical unresolved obsolete)
+;; byte-compile-warnings: (not cl-functions unresolved obsolete)
 ;; End:
 
 ;;; htmlize.el ends here

@@ -1843,8 +1843,9 @@ does not name a directory, it will be used as output file name."
         (if (fboundp 'font-lock-ensure)
             (font-lock-ensure)
           ;; Emacs prior to 25.1
-          (font-lock-mode 1)
-	  (font-lock-fontify-buffer))
+          (with-no-warnings
+            (font-lock-mode 1)
+            (font-lock-fontify-buffer)))
 	;; htmlize the buffer and save the HTML.
 	(with-current-buffer (htmlize-buffer-1)
 	  (unwind-protect

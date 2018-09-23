@@ -969,15 +969,9 @@ If no rgb.txt file is found, return nil."
 	   (setq rgb-string (gethash (downcase color) htmlize-color-rgb-hash)))
 	  (t
 	   ;; We're getting the RGB components from Emacs.
-	   (let ((rgb
-		  (if (fboundp 'color-instance-rgb-components)
-		      (mapcar (lambda (arg)
-				(/ arg 256))
-			      (color-instance-rgb-components
-			       (make-color-instance color)))
-		    (mapcar (lambda (arg)
-			      (/ arg 256))
-			    (color-values color)))))
+	   (let ((rgb (mapcar (lambda (arg)
+                                (/ arg 256))
+                              (color-values color))))
 	     (when rgb
 	       (setq rgb-string (apply #'format "#%02x%02x%02x" rgb))))))
     ;; If RGB-STRING is still nil, it means the color cannot be found,

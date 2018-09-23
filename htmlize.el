@@ -917,17 +917,6 @@ If no rgb.txt file is found, return nil."
 
 ;;; Face handling.
 
-(defun htmlize-face-specifies-property (face prop)
-  ;; Return t if face specifies PROP, as opposed to it being inherited
-  ;; from the default face.  The problem with e.g.
-  ;; `face-foreground-instance' is that it returns an instance for
-  ;; EVERY face because every face inherits from the default face.
-  ;; However, we'd like htmlize-face-{fore,back}ground to return nil
-  ;; when called with a face that doesn't specify its own foreground
-  ;; or background.
-  (or (eq face 'default)
-      (assq 'global (specifier-spec-list (face-property face prop)))))
-
 (defun htmlize-face-color-internal (face fg)
   ;; Used only under GNU Emacs.  Return the color of FACE, but don't
   ;; return "unspecified-fg" or "unspecified-bg".  If the face is

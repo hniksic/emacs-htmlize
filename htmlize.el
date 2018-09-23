@@ -1681,28 +1681,19 @@ it's called with the same value of KEY.  All other times, the cached
   ;; actually fontify the buffer.  If font-lock is not in use, we
   ;; don't care because, except in htmlize-file, we don't force
   ;; font-lock on the user.
-  (when (and (boundp 'font-lock-mode)
-	     font-lock-mode)
+  (when font-lock-mode
     ;; In part taken from ps-print-ensure-fontified in GNU Emacs 21.
-    (cond
-     ((and (boundp 'jit-lock-mode)
-	   (symbol-value 'jit-lock-mode))
+    (when (and (boundp 'jit-lock-mode)
+               (symbol-value 'jit-lock-mode))
       (htmlize-with-fontify-message
        (jit-lock-fontify-now (point-min) (point-max))))
-     ((and (boundp 'lazy-lock-mode)
-	   (symbol-value 'lazy-lock-mode))
-      (htmlize-with-fontify-message
-       (lazy-lock-fontify-region (point-min) (point-max))))
-     ((and (boundp 'lazy-shot-mode)
-	   (symbol-value 'lazy-shot-mode))
-      (htmlize-with-fontify-message
-       ;; lazy-shot is amazing in that it must *refontify* the region,
-       ;; even if the whole buffer has already been fontified.  <sigh>
-       (lazy-shot-fontify-region (point-min) (point-max))))
-     ;; There's also fast-lock, but we don't need to handle specially,
-     ;; I think.  fast-lock doesn't really defer fontification, it
-     ;; just saves it to an external cache so it's not done twice.
-     )))
+
+    (if (fboundp 'font-lock-ensure)
+        (font-lock-ensure)
+      ;; Emacs prior to 25.1
+      (with-no-warnings
+        (font-lock-mode 1)
+        (font-lock-fontify-buffer)))))
 
 
 ;;;###autoload
@@ -1820,11 +1811,7 @@ does not name a directory, it will be used as output file name."
 	(font-lock-auto-fontify nil)
 	(global-font-lock-mode nil)
 	;; Ignore the size limit for the purposes of htmlization.
-	(font-lock-maximum-size nil)
-	;; Disable font-lock support modes.  This will only work in
-	;; more recent Emacs versions, so htmlize-buffer-1 still needs
-	;; to call htmlize-ensure-fontified.
-	(font-lock-support-mode nil))
+	(font-lock-maximum-size nil))
     (with-temp-buffer
       ;; Insert FILE into the temporary buffer.
       (insert-file-contents file)
@@ -1834,12 +1821,6 @@ does not name a directory, it will be used as output file name."
       (let ((buffer-file-name file))
 	;; Set the major mode for the sake of font-lock.
 	(normal-mode)
-        (if (fboundp 'font-lock-ensure)
-            (font-lock-ensure)
-          ;; Emacs prior to 25.1
-          (with-no-warnings
-            (font-lock-mode 1)
-            (font-lock-fontify-buffer)))
 	;; htmlize the buffer and save the HTML.
 	(with-current-buffer (htmlize-buffer-1)
 	  (unwind-protect

@@ -3,6 +3,7 @@
 ;; Copyright (C) 1997-2003,2005,2006,2009,2011,2012,2014,2017,2018 Hrvoje Niksic
 
 ;; Author: Hrvoje Niksic <hniksic@gmail.com>
+;; Homepage: https://github.com/hniksic/emacs-htmlize
 ;; Keywords: hypermedia, extensions
 ;; Version: 1.56
 

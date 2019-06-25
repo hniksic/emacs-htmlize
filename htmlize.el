@@ -958,16 +958,18 @@ If no rgb.txt file is found, return nil."
 	   ;; specifying any color.  Hence (htmlize-color-to-rgb nil)
 	   ;; returns nil.
 	   )
-	  ((string-match "\\`#" color)
+	  ((and (string-match "\\`#" color) (= (length color) 7))
 	   ;; The color is already in #rrggbb format.
 	   (setq rgb-string color))
-	  ((and htmlize-use-rgb-txt
-		htmlize-color-rgb-hash)
+	  ((and (not (string-match "\\`#" color))
+	        htmlize-use-rgb-txt
+	        htmlize-color-rgb-hash)
 	   ;; Use of rgb.txt is requested, and it's available on the
 	   ;; system.  Use it.
 	   (setq rgb-string (gethash (downcase color) htmlize-color-rgb-hash)))
 	  (t
-	   ;; We're getting the RGB components from Emacs.
+	   ;; We're getting the RGB components from Emacs, or a hash that is in long format (e.g. #rrrrggggbbbb) that needs
+	   ;; to be parsed to color-values and emitted.
 	   (let ((rgb (mapcar (lambda (arg)
                                 (/ arg 256))
                               (color-values color))))

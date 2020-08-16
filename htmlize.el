@@ -731,7 +731,7 @@ list."
 	     ;; Increase COLUMN by the length of the text we've
 	     ;; skipped since last tab or newline.  (Encountering
 	     ;; newline resets it.)
-	     (incf column (- match-pos last-match))
+	     (cl-incf column (- match-pos last-match))
 	     ;; Calculate tab size based on tab-width and COLUMN.
 	     (setq tab-size (- tab-width (% column tab-width)))
 	     ;; Expand the tab, carefully recreating the `display'
@@ -741,7 +741,7 @@ list."
                (when display
                  (put-text-property 0 tab-size 'display display expanded-tab))
                (push expanded-tab chunks))
-	     (incf column tab-size)
+	     (cl-incf column tab-size)
 	     (setq chunk-start (1+ match-pos)))
 	    (t
 	     ;; Reset COLUMN at beginning of line.
@@ -771,7 +771,7 @@ list."
     (when htmlize-untabify
       (setq text (htmlize-untabify-string text (current-column))))
     (setq text (htmlize-string-to-html text))
-    (values text trailing-ellipsis)))
+    (cl-values text trailing-ellipsis)))
 
 (defun htmlize-despam-address (string)
   "Replace every occurrence of '@' in STRING with %40.
@@ -1241,7 +1241,7 @@ If no rgb.txt file is found, return nil."
 	    ;; Uniquify the face's css-name by using NAME-1, NAME-2,
 	    ;; etc.
 	    (while (member new-name css-names)
-	      (setq new-name (format "%s-%s" css-name (incf i))))
+	      (setq new-name (format "%s-%s" css-name (cl-incf i))))
 	    (unless (equal new-name css-name)
 	      (setf (htmlize-fstruct-css-name fstruct) new-name))
 	    (push new-name css-names)))))
@@ -1358,7 +1358,7 @@ overlays that specify `face'."
 That means that GENERATOR will be evaluated and returned the first time
 it's called with the same value of KEY.  All other times, the cached
 \(memoized) value will be returned."
-  (let ((value (gensym)))
+  (let ((value (cl-gensym)))
     `(let ((,value (gethash ,key htmlize-memoization-table)))
        (unless ,value
 	 (setq ,value ,generator)
@@ -1559,8 +1559,8 @@ it's called with the same value of KEY.  All other times, the cached
           (completed nil))
       (unwind-protect
           (let* ((buffer-faces (htmlize-faces-in-buffer))
-                 (face-map (htmlize-make-face-map (adjoin 'default buffer-faces)))
-                 (places (gensym))
+                 (face-map (htmlize-make-face-map (cl-adjoin 'default buffer-faces)))
+                 (places (cl-gensym))
                  (title (if (buffer-file-name)
                             (file-name-nondirectory (buffer-file-name))
                           (buffer-name))))
@@ -1621,7 +1621,7 @@ it's called with the same value of KEY.  All other times, the cached
                       fstruct-list (delq nil (mapcar (lambda (f)
                                                        (gethash f face-map))
                                                      face-list)))
-                (multiple-value-setq (text trailing-ellipsis)
+                (cl-multiple-value-setq (text trailing-ellipsis)
                   (htmlize-extract-text (point) next-change trailing-ellipsis))
                 ;; Don't bother writing anything if there's no text (this
                 ;; happens in invisible regions).

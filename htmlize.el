@@ -1122,11 +1122,14 @@ If no rgb.txt file is found, return nil."
 
 (defun htmlize-merge-size (merged next)
   ;; Calculate the size of the merge of MERGED and NEXT.
-  (cond ((null merged)     next)
-	((integerp next)   next)
-	((null next)       merged)
-	((floatp merged)   (* merged next))
-	((integerp merged) (round (* merged next)))))
+  (let ((next (if (functionp next)
+                  (apply next '(merged)) next)))
+    (cond ((null merged)     next)
+	  ((integerp next)   next)
+	  ((null next)       merged)
+	  ((floatp merged)   (* merged next))
+	  ((integerp merged) (round (* merged next))))))
+
 
 (defun htmlize-merge-two-faces (merged next)
   (htmlize-copy-attr-if-set

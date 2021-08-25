@@ -1045,7 +1045,7 @@ If no rgb.txt file is found, return nil."
     (let ((size-list
            (cl-loop
             for f in face-list
-            for h = (face-attribute f :height)
+            for h = (and (facep f) (face-attribute f :height))
             collect (if (eq h 'unspecified) nil h))))
       (cl-reduce 'htmlize-merge-size (cons nil size-list)))))
 

@@ -5,7 +5,7 @@
 ;; Author: Hrvoje Niksic <hniksic@gmail.com>
 ;; Homepage: https://github.com/hniksic/emacs-htmlize
 ;; Keywords: hypermedia, extensions
-;; Version: 1.56
+;; Version: 1.57
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@
   (defvar font-lock-support-mode)
   (defvar global-font-lock-mode))
 
-(defconst htmlize-version "1.56")
+(defconst htmlize-version "1.57")
 
 (defgroup htmlize nil
   "Convert buffer text and faces to HTML."

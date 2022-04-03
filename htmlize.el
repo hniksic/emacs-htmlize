@@ -323,6 +323,11 @@ consistent background for captures of regions."
   :type 'boolean
   :group 'htmlize)
 
+(defcustom htmlize-custom-css-link nil
+  "an additional custom css stylesheet"
+  :type 'string
+  :group 'htmlize)
+
 (defvar htmlize-before-hook nil
   "Hook run before htmlizing a buffer.
 The hook functions are run in the source buffer (not the resulting HTML
@@ -1568,6 +1573,9 @@ it's called with the same value of KEY.  All other times, the cached
                         "")
                       htmlize-head-tags)
               (htmlize-method insert-head buffer-faces face-map)
+              (when htmlize-custom-css-link
+                (insert (concat "    <link rel='stylesheet' type='text/css' href='"
+                        htmlize-custom-css-link "'/>\n")))
               (insert "  </head>")
               (put places 'head-end (point-marker))
               (insert "\n  ")

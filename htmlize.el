@@ -602,7 +602,8 @@ list."
                     (if (symbolp i) i (car i)))))
 
 (defun htmlize-decode-invisibility-spec (invisible)
-  ;; Return t, nil, or `ellipsis', depending on how invisible text should be inserted.
+  ;; Return t, nil, or `ellipsis', depending on how invisible text should
+  ;; be inserted.
 
   (if (not (listp buffer-invisibility-spec))
       ;; If buffer-invisibility-spec is not a list, then all
@@ -1405,7 +1406,8 @@ it's called with the same value of KEY.  All other times, the cached
 	  "\n      }\n")
   (dolist (face (cl-sort (cl-copy-list buffer-faces) #'string-lessp
 		         :key (lambda (f)
-			        (htmlize-fstruct-css-name (gethash f face-map)))))
+			        (htmlize-fstruct-css-name
+                                 (gethash f face-map)))))
     (let* ((fstruct (gethash face face-map))
 	   (cleaned-up-face-name
 	    (let ((s
@@ -1455,7 +1457,8 @@ it's called with the same value of KEY.  All other times, the cached
 (defun htmlize-inline-css-pre-tag (face-map)
   (if htmlize-pre-style
       (format "<pre style=\"%s\">"
-              (mapconcat #'identity (htmlize-css-specs (gethash 'default face-map))
+              (mapconcat #'identity
+                         (htmlize-css-specs (gethash 'default face-map))
                          " "))
     (format "<pre>")))
 
@@ -1465,7 +1468,9 @@ it's called with the same value of KEY.  All other times, the cached
 		 merged
 		 (let ((specs (htmlize-css-specs merged)))
 		   (and specs
-			(mapconcat #'identity (htmlize-css-specs merged) " "))))))
+			(mapconcat #'identity
+                                   (htmlize-css-specs merged)
+                                   " "))))))
     (when style
       (princ "<span style=\"" buffer)
       (princ style buffer)
@@ -1499,8 +1504,9 @@ it's called with the same value of KEY.  All other times, the cached
 	 (markup (htmlize-memoize
 		  merged
 		  (cons (concat
-			 (and (htmlize-fstruct-foreground merged)
-			      (format "<font color=\"%s\">" (htmlize-fstruct-foreground merged)))
+		         (and (htmlize-fstruct-foreground merged)
+			      (format "<font color=\"%s\">"
+				       (htmlize-fstruct-foreground merged)))
 			 (and (htmlize-fstruct-boldp merged)      "<b>")
 			 (and (htmlize-fstruct-italicp merged)    "<i>")
 			 (and (htmlize-fstruct-underlinep merged) "<u>")
@@ -1540,7 +1546,8 @@ it's called with the same value of KEY.  All other times, the cached
           (completed nil))
       (unwind-protect
           (let* ((buffer-faces (htmlize-faces-in-buffer))
-                 (face-map (htmlize-make-face-map (cl-adjoin 'default buffer-faces)))
+                 (face-map (htmlize-make-face-map
+                            (cl-adjoin 'default buffer-faces)))
                  (places (cl-gensym))
                  (title (if (buffer-file-name)
                             (file-name-nondirectory (buffer-file-name))
@@ -1561,9 +1568,10 @@ it's called with the same value of KEY.  All other times, the cached
               (insert "<head>\n"
                       "    <title>" (htmlize-protect-string title) "</title>\n"
                       (if htmlize-html-charset
-                          (format (concat "    <meta http-equiv=\"Content-Type\" "
-                                          "content=\"text/html; charset=%s\">\n")
-                                  htmlize-html-charset)
+                          (format
+                           (concat "    <meta http-equiv=\"Content-Type\" "
+                                   "content=\"text/html; charset=%s\">\n")
+                           htmlize-html-charset)
                         "")
                       htmlize-head-tags)
               (htmlize-method insert-head buffer-faces face-map)
@@ -1610,8 +1618,9 @@ it's called with the same value of KEY.  All other times, the cached
                   ;; Open the new markup if necessary and insert the text.
                   (when (not (cl-equalp fstruct-list last-fstruct-list))
                     (funcall close-markup)
-                    (setq last-fstruct-list fstruct-list
-                          close-markup (funcall text-markup fstruct-list htmlbuf)))
+                    (setq last-fstruct-list fstruct-list)
+                    (setq close-markup
+                          (funcall text-markup fstruct-list htmlbuf)))
                   (princ text htmlbuf))
                 (goto-char next-change))
 

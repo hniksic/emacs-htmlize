@@ -297,7 +297,7 @@ naming the face and values are the overriding definitions.  For
 example:
 
   (setq htmlize-face-overrides
-        '(font-lock-warning-face \"black\"
+        \\='(font-lock-warning-face \"black\"
           font-lock-function-name-face \"red\"
           font-lock-comment-face \"blue\"
           default (:foreground \"dark-green\" :background \"yellow\")))
@@ -824,8 +824,7 @@ This is used to protect mailto links without modifying their meaning."
 ;; <xalan-dev-sc.10148567319.hacuhiucknfgmpfnjcpg-john=doe.com@xml.apache.org>
 
 (defun htmlize-shadow-form-feeds ()
-  (let ((s "\n<hr />"))
-    (put-text-property 0 (length s) 'htmlize-literal t s)
+  (let ((s (propertize "\n<hr />" 'htmlize-literal t)))
     (let ((disp `(display ,s)))
       (while (re-search-forward "\n\^L" nil t)
         (let* ((beg (match-beginning 0))
@@ -1794,9 +1793,7 @@ does not name a directory, it will be used as output file name."
 	;; font-lock because we'll fontify explicitly below.
 	(font-lock-mode nil)
 	(font-lock-auto-fontify nil)
-	(global-font-lock-mode nil)
-	;; Ignore the size limit for the purposes of htmlization.
-	(font-lock-maximum-size nil))
+	(global-font-lock-mode nil))
     (with-temp-buffer
       ;; Insert FILE into the temporary buffer.
       (insert-file-contents file)
@@ -1851,6 +1848,9 @@ corresponding source file."
   (dolist (file files)
     (htmlize-file file target-directory)))
 
+(declare-function dired-get-marked-files "dired"
+                  (&optional localp arg filter distinguish-one-marked error))
+
 ;;;###autoload
 (defun htmlize-many-files-dired (arg &optional target-directory)
   "HTMLize dired-marked files."
@@ -1858,9 +1858,5 @@ corresponding source file."
   (htmlize-many-files (dired-get-marked-files nil arg) target-directory))
 
 (provide 'htmlize)
-
-;; Local Variables:
-;; byte-compile-warnings: (not unresolved obsolete)
-;; End:
 
 ;;; htmlize.el ends here

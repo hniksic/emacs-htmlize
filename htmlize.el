@@ -845,7 +845,7 @@ This is used to protect mailto links without modifying their meaning."
   (goto-char (point-min))
   (while (search-forward "Local Variables:" nil t)
     (replace-match "Local Variables&#58;" nil t)))
-  
+
 
 ;;; Color handling.
 
@@ -1310,7 +1310,7 @@ overlays that specify `face'."
 ;; `insert-head', `body-tag', `pre-tag', and `text-markup'.  Not all
 ;; output types define all methods.
 ;;
-;; Methods are called either with (htmlize-method METHOD ARGS...) 
+;; Methods are called either with (htmlize-method METHOD ARGS...)
 ;; special form, or by accessing the function with
 ;; (htmlize-method-function 'METHOD) and calling (funcall FUNCTION).
 ;; The latter form is useful in tight loops because `htmlize-method'
@@ -1495,7 +1495,7 @@ it's called with the same value of KEY.  All other times, the cached
                 (htmlize-fstruct-foreground fstruct)
                 (htmlize-fstruct-background fstruct)))
     (format "<pre>")))
-       
+
 (defun htmlize-font-text-markup (fstruct-list buffer)
   ;; In `font' mode, we use the traditional HTML means of altering
   ;; presentation: <font> tag for colors, <b> for bold, <u> for

@@ -594,8 +594,7 @@ list."
                    (base64-encode-string (plist-get imgprops :data))
                    alt-attr)))))
 
-(defconst htmlize-ellipsis "...")
-(put-text-property 0 (length htmlize-ellipsis) 'htmlize-ellipsis t htmlize-ellipsis)
+(defconst htmlize-ellipsis (propertize "..." 'htmlize-ellipsis t))
 
 (defun htmlize-match-inv-spec (inv)
   (cl-member inv buffer-invisibility-spec

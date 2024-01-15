@@ -1681,38 +1681,39 @@ it's called with the same value of KEY.  All other times, the cached
 
 
 ;;;###autoload
-(defun htmlize-buffer (&optional buffer)
+(defun htmlize-buffer (&optional buffer interactive)
   "Convert BUFFER to HTML, preserving colors and decorations.
 
 The generated HTML is available in a new buffer, which is returned.
-When invoked interactively, the new buffer is selected in the current
-window.  The title of the generated document will be set to the buffer's
-file name or, if that's not available, to the buffer's name.
+When invoked interactively (or if optional INTERACTIVE is non-nil),
+the new buffer is selected in the current window.  The title of the
+generated document will be set to the buffer's file name or, if that
+is not available, to the buffer's name.
 
 Note that htmlize doesn't fontify your buffers, it only uses the
 decorations that are already present.  If you don't set up font-lock or
 something else to fontify your buffers, the resulting HTML will be
 plain.  Likewise, if you don't like the choice of colors, fix the mode
 that created them, or simply alter the faces it uses."
-  (interactive)
+  (interactive "i\np")
   (let ((htmlbuf (with-current-buffer (or buffer (current-buffer))
 		   (htmlize-buffer-1))))
-    (when (interactive-p)
+    (when interactive
       (switch-to-buffer htmlbuf))
     htmlbuf))
 
 ;;;###autoload
-(defun htmlize-region (beg end)
+(defun htmlize-region (beg end &optional interactive)
   "Convert the region to HTML, preserving colors and decorations.
 See `htmlize-buffer' for details."
-  (interactive "r")
+  (interactive "r\np")
   ;; Don't let zmacs region highlighting end up in HTML.
   (when (fboundp 'zmacs-deactivate-region)
     (zmacs-deactivate-region))
   (let ((htmlbuf (save-restriction
 		   (narrow-to-region beg end)
 		   (htmlize-buffer-1))))
-    (when (interactive-p)
+    (when interactive
       (switch-to-buffer htmlbuf))
     htmlbuf))
 

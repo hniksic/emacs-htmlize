@@ -1032,7 +1032,7 @@ If no rgb.txt file is found, return nil."
   (let* ((face-list (list face))
          (head face-list)
          (tail face-list))
-    (while head
+    (while (and head (not (eq (car head) 'unspecified)))
       (let ((inherit (face-attribute (car head) :inherit)))
         (cond ((listp inherit)
                (setcdr tail (cl-copy-list inherit))

@@ -747,6 +747,7 @@ list."
              (let ((display (get-text-property match-pos 'display text))
                    (expanded-tab (aref htmlize-tab-spaces tab-size)))
                (when display
+                 (setq expanded-tab (copy-sequence expanded-tab))
                  (put-text-property 0 tab-size 'display display expanded-tab))
                (push expanded-tab chunks))
              (cl-incf column tab-size)

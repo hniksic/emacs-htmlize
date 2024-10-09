@@ -716,14 +716,6 @@ list."
       (substring text (length htmlize-ellipsis))
     text))
 
-(defconst htmlize-tab-spaces
-  ;; A table of strings with spaces.  (aref htmlize-tab-spaces 5) is
-  ;; like (make-string 5 ?\ ), except it doesn't cons.
-  (let ((v (make-vector 32 nil)))
-    (dotimes (i (length v))
-      (setf (aref v i) (make-string i ?\ )))
-    v))
-
 (defun htmlize-untabify-string (text start-column)
   "Untabify TEXT, assuming it starts at START-COLUMN."
   (let ((column start-column)
@@ -745,7 +737,7 @@ list."
              ;; Expand the tab, carefully recreating the `display'
              ;; property if one was on the TAB.
              (let ((display (get-text-property match-pos 'display text))
-                   (expanded-tab (aref htmlize-tab-spaces tab-size)))
+                   (expanded-tab (make-string tab-size ?\s)))
                (when display
                  (setq expanded-tab (copy-sequence expanded-tab))
                  (put-text-property 0 tab-size 'display display expanded-tab))

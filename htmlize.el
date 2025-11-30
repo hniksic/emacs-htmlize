@@ -939,6 +939,21 @@ If no rgb.txt file is found, return nil."
   ;; GNU Emacs.
   (htmlize-face-color-internal face nil))
 
+(defun htmlize--truncate-hex (color)
+  (let* ((xcolor (substring color 1))      ;; remove hash
+         (len-col (length xcolor))
+         (size-chan (cond ((eq len-col 12) 4) ;; if length of color is 12, then 3 channels of size 4
+                          ((eq len-col 16) 4) ;; if length of color is 16, then 3 channels + alpha of size 4
+                          (t (/ len-col 3)))) ;; assume 3 channels for arbitrary sizes of size N/3
+         (new-color "#")
+         (i 0))
+    (while (< i len-col)
+      (let ((start i)
+            (end (+ i 2))) ;; normal channel sizes are 2 digit hexes
+        (setq new-color (concat new-color (substring xcolor start end))
+              i (+ i size-chan))))
+    new-color))
+
 ;; Convert COLOR to the #RRGGBB string.  If COLOR is already in that
 ;; format, it's left unchanged.
 
@@ -949,9 +964,13 @@ If no rgb.txt file is found, return nil."
            ;; specifying any color.  Hence (htmlize-color-to-rgb nil)
            ;; returns nil.
            )
-          ((string-match "\\`#[0-9a-fA-F]\\{6\\}" color)
-           ;; The color is already in #rrggbb format.
-           (setq rgb-string color))
+          ((string-match (rx bol "#" (= 6 hex-digit)) color)
+           ;; The color is already in #rrggbb format, but might be
+           ;; more than 6 digits e.g. org-rainbow-tag colors have 12 digits
+           (setq rgb-string
+                 (if (<= (length color) 9) color ;; #rrggbbaa is valid css
+                   ;; truncate the hex of anything longer, e.g. #60cb1a129d94 to #601a9d
+                   (htmlize--truncate-hex color))))
           ((and htmlize-use-rgb-txt
                 htmlize-color-rgb-hash)
            ;; Use of rgb.txt is requested, and it's available on the
@@ -1081,6 +1100,8 @@ If no rgb.txt file is found, return nil."
     fstruct))
 
 (defun htmlize-face-to-fstruct (face)
+  (if (eq (type-of face) 'string)
+      (setq face (intern face)))
   (let* ((face-list (or (and (symbolp face)
                              (cdr (assq face face-remapping-alist)))
                         (list face)))

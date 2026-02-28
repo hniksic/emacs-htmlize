@@ -361,8 +361,8 @@ https://www.iana.org/assignments/media-types/media-types.xhtml#image")
     (setq pos (min pos next-prop))
     ;; Additionally, we include the entire region that specifies the
     ;; `display' property.
-    (when (get-char-property pos 'display)
-      (setq pos (next-single-char-property-change pos 'display nil limit)))
+    (when (get-char-property (1- pos) 'display)
+      (setq pos (next-single-char-property-change (1- pos) 'display nil limit)))
     pos))
 
 

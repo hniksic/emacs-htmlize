@@ -1523,6 +1523,16 @@ it's called with the same value of KEY.  All other times, the cached
     ;; in advance.
     (message "Fontifing %s..." buffer-file-name)
     (font-lock-ensure)
+    ;; Remove formatting on newline characters.  This ensures lines
+    ;; are formatted independently.  So, code that depends on
+    ;; htmlize's output can process it line by line.
+    (save-excursion
+      (let ((beg (point-min))
+            (end (point-max)))
+        (goto-char beg)
+        (while (progn (end-of-line) (< (point) end))
+          (put-text-property (point) (1+ (point)) 'face nil)
+          (forward-char 1))))
     (message "Fontifing %s...done" buffer-file-name)
     (message "Htmlizing %s..." buffer-file-name)
     (clrhash htmlize-extended-character-cache)

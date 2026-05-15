@@ -914,6 +914,9 @@ If no rgb.txt file is found, return nil."
   ;; frame parameters.
   (let* ((function (if fg #'face-foreground #'face-background))
          (color (funcall function face nil t)))
+    (when (eq color 'reset)
+      (setq face 'default
+            color (funcall function face nil t)))
     (when (and (eq face 'default) (null color))
       (setq color (cdr (assq (if fg 'foreground-color 'background-color)
                              (frame-parameters)))))
